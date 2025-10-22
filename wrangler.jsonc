@@ -8,11 +8,25 @@
 	"compatibility_date": "2025-10-22",
 	"main": "server/index.js",
 	"assets": {
+		"directory": "src/assets/",
 		"not_found_handling": "single-page-application"
 	},
 	"observability": {
 		"enabled": true
-	}
+	},
+	"triggers": {
+		"crons": [
+			"0 0 * * sun"
+		]
+	},
+	"d1_databases": [
+		{
+			"binding": "games_db",
+			"database_name": "games-db",
+			"database_id": "77495f18-f129-4475-8e5f-43023ab7da8f",
+			"remote": false
+		}
+	],
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
