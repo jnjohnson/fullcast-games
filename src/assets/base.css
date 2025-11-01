@@ -21,6 +21,8 @@
   --vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
   --ptku-blue: #50EFEC;
   --ptku-pink: #D12CDC;
+  --correct-green: #30de10;
+  --incorrect-red: #ff0000;
 }
 
 /* semantic color variables for this project */

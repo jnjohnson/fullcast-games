@@ -19,12 +19,25 @@ async function getPlayers(env) {
 }
 
 async function checkAnswer(req, env) {
+    let correct = false;
+    const body = await req.json();
     const { results } = await env.games_db
         .prepare("SELECT Transfers FROM PlayerTransfers WHERE PlayerId = ?")
-        .bind(req.PlayerId)
+        .bind(body.pid)
         .run();
-
-    return (results === req.question) ? true : false;
+    const transfers = JSON.parse(results[0].Transfers);
+    transfers.every((location, i) => {
+        if (location == body.question[i]) {
+            correct = true;
+        } else {
+            correct = false;
+            return false;
+        }
+        return true;
+    });
+    return new Response(JSON.stringify({
+        correct: correct
+    }), { status: 200 });
 }
 
-export default getPlayers;
+export { getPlayers, checkAnswer };

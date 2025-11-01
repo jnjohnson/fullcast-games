@@ -1,4 +1,4 @@
-import getPlayers from './transferWizard.js';
+import { getPlayers, checkAnswer } from './transferWizard.js';
 
 export default {
 	async fetch(request, env) {
@@ -6,8 +6,8 @@ export default {
 
         if (pathname === "/api/transfer-wizard/get-players") {
             return getPlayers(env);
-		} else if (pathname === "/api/transfer-wizard/submit-answer"){
-            console.log(request);
+		} else if (pathname === "/api/transfer-wizard/submit"){
+            return checkAnswer(request, env);
         } else {
             return new Response(null, { status: 404 });
         }
