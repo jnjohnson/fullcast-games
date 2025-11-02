@@ -19,24 +19,14 @@ async function getPlayers(env) {
 }
 
 async function checkAnswer(req, env) {
-    let correct = false;
     const body = await req.json();
     const { results } = await env.games_db
-        .prepare("SELECT Transfers FROM PlayerTransfers WHERE PlayerId = ?")
-        .bind(body.pid)
+        .prepare("SELECT PlayerId FROM PlayerTransfers WHERE Transfers = ?")
+        .bind(JSON.stringify(body.question).replaceAll(',', ', '))
         .run();
-    const transfers = JSON.parse(results[0].Transfers);
-    transfers.every((location, i) => {
-        if (location == body.question[i]) {
-            correct = true;
-        } else {
-            correct = false;
-            return false;
-        }
-        return true;
-    });
+
     return new Response(JSON.stringify({
-        correct: correct
+        correctPid: results[0].PlayerId
     }), { status: 200 });
 }
 
