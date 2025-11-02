@@ -2,19 +2,21 @@
     import { ref } from 'vue';
 
     let buttonState = ref(new Array(4));
+    let response = await fetch('/api/transfer-wizard/get-players');
+    let res = await response.json();
+    
+    const question = JSON.parse(res.question);
+    const answers = res.players;
+    
     for (let i=0; i<buttonState.value.length; i++) {
         buttonState.value[i] = {
+            pid: answers[i].id,
             correct: false,
             incorrect: false,
             waiting: false,
             disabled: false
         }
     }
-    let response = await fetch('/api/transfer-wizard/get-players');
-    let res = await response.json();
-    
-    const question = JSON.parse(res.question);
-    const answers = res.players;
 
     async function submit(pid, i) {
         buttonState.value.forEach((button) => {
@@ -24,17 +26,20 @@
         let response = await fetch('/api/transfer-wizard/submit', {
             method: "POST",
             body: JSON.stringify({
-                pid: pid,
                 question: question
             })
         });
         let res = await response;
         const body = await res.json();
-        
         buttonState.value[i].waiting = false;
-        if (body.correct) {
+        if (pid == body.correctPid) {
             buttonState.value[i].correct = true;
         } else {
+            buttonState.value.forEach(button => {
+                if (button.pid == body.correctPid) {
+                    button.correct = true;
+                }
+            });
             buttonState.value[i].incorrect = true;
         }
     }
