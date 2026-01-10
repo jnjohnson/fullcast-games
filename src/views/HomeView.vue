@@ -1,6 +1,6 @@
 <template>
     <main>
-        <RouterLink to="/transfer-wizard" class="button">Play <i>Transfer Wizard</i></RouterLink>
+        <RouterLink to="/transfer-wizard" class="button">Transfer Wizard</RouterLink>
     </main>
 </template>
 
