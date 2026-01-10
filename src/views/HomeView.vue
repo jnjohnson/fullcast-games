@@ -4,12 +4,13 @@
     </main>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
     main {
         text-align: center;
+        
+        a {
+            margin-top: 20px;
+        }
     }
 
-    main a {
-        margin-top: 20px;
-    }
 </style>

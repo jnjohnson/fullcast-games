@@ -80,66 +80,73 @@
         </div>
     </div>
 </template>
-<style scoped>
+<style scoped lang="scss">
     .question {
         display: flex;
-    }
-    .question div {
-        border: 2px solid var(--ptku-blue);
-        border-radius: 15px;
-        color: var(--ptku-blue);
-        padding: 10px;
+        
+        div {
+            border: 2px solid var(--ptku-blue);
+            border-radius: 15px;
+            color: var(--ptku-blue);
+            padding: 10px;
+        }
     }
     .answers {
         align-items: center;
         display: flex;
-        flex-direction: column;
+        flex-flow: row wrap;
         gap: 20px;
+        justify-content: center;
         margin-top: 40px;
-    }
-    .answers button {
-        border: none;
-        cursor: pointer;
-        line-height: 1.7;
-        position: relative;
-        text-transform: uppercase;
-        width: 300px;
-    }
-    .answers button.disabled {
-        pointer-events: none;
-    }
-    .answers button.correct::after {
-        animation: correct 0.4s linear forwards;
-    }
-    .answers button.incorrect::after {
-        animation: incorrect 0.4s linear forwards;
-    }
-    .answers button::after {
-        background-image: linear-gradient(to bottom right, var(--incorrect-red) 0%, var(--incorrect-red) 25%, var(--ptku-pink) 33%, var(--ptku-blue) 66%, var(--correct-green) 75%, var(--correct-green) 100%);
-        background-position: center;
-        background-size: 400% 400%;
-        border-radius: 15px;
-        content: '';
-        height: calc(100% + 4px);
-        position: absolute;
-        top: -2px;
-        left: -2px;
-        width: calc(100% + 4px);
-        z-index: -1;
-    }
-    .answers button:hover,
-    .answers button.waiting,
-    .answers button.correct,
-    .answers button.incorrect {
-        color: var(--color-background);
-        background-color: rgba(var(--color-background), 0);
+        max-width: 700px;
+        width: 100%;
+        
+        button {
+            border: none;
+            cursor: pointer;
+            line-height: 1.7;
+            position: relative;
+            text-transform: uppercase;
+            width: 300px;
+            
+            &.disabled {
+                pointer-events: none;
+            }
+            &.correct::after {
+                animation: correct 0.4s linear forwards;
+            }
+            &.incorrect::after {
+                animation: incorrect 0.4s linear forwards;
+            }
+            &::after {
+                background-image: linear-gradient(to bottom right, var(--incorrect-red) 0%, var(--incorrect-red) 25%, var(--ptku-pink) 33%, var(--ptku-blue) 66%, var(--correct-green) 75%, var(--correct-green) 100%);
+                background-position: center;
+                background-size: 400% 400%;
+                border-radius: 15px;
+                content: '';
+                height: calc(100% + 4px);
+                position: absolute;
+                top: -2px;
+                left: -2px;
+                width: calc(100% + 4px);
+                z-index: -1;
+            }
+            &:hover,
+            &.waiting,
+            &.correct,
+            &.incorrect {
+                color: var(--color-background);
+                background-color: rgba(var(--color-background), 0);
+            }
+        }
     }
     .next-question {
         margin-top: 50px;
         text-align: center;
-    }
-    .next-question button {
-        cursor: pointer;
+        
+        button {
+            cursor: pointer;
+        }
     }
 
 @keyframes correct {
