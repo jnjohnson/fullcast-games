@@ -1,4 +1,4 @@
-import { getPlayers, checkAnswer } from './transferWizard.js';
+import { getPlayers, checkAnswer, findPlayer, addNewPlayer, updatePlayer } from './transferWizard.js';
 
 export default {
 	async fetch(request, env) {
@@ -16,14 +16,44 @@ export default {
 
     async scheduled(controller, env, ctx) {
         console.log("cron processing");
-        let response = await fetch('https://api.collegefootballdata.com/games?year=2024&seasonType=regular&classification=fbs&team=Michigan', {
+        let response = await fetch('https://api.collegefootballdata.com/player/portal?year=2026', {
             headers: {
                 "accept": "application/json",
-                "Authorization": "Bearer r8m5gAFIDp/a+0XfE9w6emF5k08s3BmfzNVIkfre/lwcGsUa55eLSQ0m6yHNJENC"
+                "Authorization": env.CFBD_TOKEN
             }
         });
         let res = await response.json();
-        console.log(res);
+        let np = 0;
+        let ep = 0;
+        let sp = 0;
+        let result;
+        console.log(res.length);
+        for (const transfer of res) {
+            // If both are not present, skip player for this season
+            if (transfer.origin && transfer.destination) {
+                const { results } = await findPlayer(transfer, env);
+                if (results.length == 0) {
+                    addNewPlayer(transfer, env);
+                    np++;
+                } else if (results.length == 1) {
+                    result = updatePlayer(results[0], transfer, env);
+                    if (result) {
+                        ep++;
+                    } else {
+                        sp++;
+                    }
+                } else {
+                    console.error('multiple players found!');
+                    console.error('results:');
+                    console.error(results);
+                    console.error('transfer:');
+                    console.error(transfer);
+                }
+            }
+        };
+        console.log('new players added: ' + np);
+        console.log('existing players updated: ' + ep);
+        console.log('existing players skipped: ' + sp);
         console.log("cron processed");
         return new Response(null, { status: 200 });
     }
