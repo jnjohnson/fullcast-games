@@ -1,3 +1,3 @@
 DROP TABLE IF EXISTS PlayerTransfers;
-CREATE TABLE IF NOT EXISTS PlayerTransfers (PlayerId INTEGER PRIMARY KEY, FirstName TEXT, LastName TEXT, Transfers TEXT);
-INSERT INTO PlayerTransfers (PlayerId, FirstName, LastName, Transfers) VALUES (1, 'Cameron', 'Skattebo', '["Sacramento State", "Arizona State", "New York Giants"]'), (4, "Russel", "Westbrook", '["North Dakota State", "Kent State", "Utah", "Alabama"]'), (6, 'Trinidad', 'Chambliss', '["Ferris State", "Ole Miss", "Dallas Cowboys"]'), (8, "Diego", "Pavia", '["New Mexico Military Institute", "New Mexico State", "Vanderbilt"]');
+CREATE TABLE IF NOT EXISTS PlayerTransfers (PlayerId INTEGER PRIMARY KEY, FirstName TEXT, LastName TEXT, Position TEXT, WasInP4 INTEGER, InP4 INTEGER, Transfers TEXT);
+CREATE INDEX idx_name_position ON PlayerTransfers(FirstName, LastName, Position);
