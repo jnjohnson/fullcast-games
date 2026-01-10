@@ -5,7 +5,7 @@
 </template>
 
 <style scoped lang="scss">
-    @import '../assets/base.scss';
+    @use '../assets/base';
 
     main {
         text-align: center;
