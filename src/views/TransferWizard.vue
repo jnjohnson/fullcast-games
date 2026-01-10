@@ -81,13 +81,15 @@
     </div>
 </template>
 <style scoped lang="scss">
+    @import '../assets/base.scss';
+
     .question {
         display: flex;
         
         div {
-            border: 2px solid var(--ptku-blue);
+            border: 2px solid $ptku-blue;
             border-radius: 15px;
-            color: var(--ptku-blue);
+            color: $ptku-blue;
             padding: 10px;
         }
     }
@@ -96,7 +98,6 @@
         display: flex;
         flex-flow: row wrap;
         gap: 20px;
-        justify-content: center;
         margin-top: 40px;
         max-width: 700px;
         width: 100%;
@@ -119,7 +120,7 @@
                 animation: incorrect 0.4s linear forwards;
             }
             &::after {
-                background-image: linear-gradient(to bottom right, var(--incorrect-red) 0%, var(--incorrect-red) 25%, var(--ptku-pink) 33%, var(--ptku-blue) 66%, var(--correct-green) 75%, var(--correct-green) 100%);
+                background-image: linear-gradient(to bottom right, $incorrect-red 0%, $incorrect-red 25%, $ptku-pink 33%, $ptku-blue 66%, $correct-green 75%, $correct-green 100%);
                 background-position: center;
                 background-size: 400% 400%;
                 border-radius: 15px;
@@ -135,14 +136,13 @@
             &.waiting,
             &.correct,
             &.incorrect {
-                color: var(--color-background);
-                background-color: rgba(var(--color-background), 0);
+                color: $color-background;
+                background-color: rgba($color-background, 0);
             }
         }
     }
     .next-question {
         margin-top: 50px;
-        text-align: center;
         
         button {
             cursor: pointer;

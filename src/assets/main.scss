@@ -12,23 +12,23 @@ justify-content: center;
 }
 button, .button {
   text-decoration: none;
-  border: 1px solid var(--ptku-blue);
+  border: 1px solid $ptku-blue;
   border-radius: 15px;
-  color: var(--ptku-blue);
+  color: $ptku-blue;
   display: inline-block;
   letter-spacing: 1.2px;
   padding: 20px;
   transition: 0.4s;
 }
 button {
-    background: var(--color-background);
+    background: $color-background;
     font-family: inherit;
 }
 
 @media (hover: hover) {
   button:hover, .button:hover {
-    background-color: var(--ptku-blue);
-    color: var(--vt-c-black-soft);
+    background-color: $ptku-blue;
+    color: #222222;
   }
 }
 
