@@ -1,6 +1,8 @@
 <script setup>
     import { ref } from 'vue';
+    import { useRouter } from 'vue-router';
 
+    const router = useRouter();
     let buttonState = ref(new Array(4));
     let response = await fetch('/api/transfer-wizard/get-players');
     let res = await response.json();
@@ -43,6 +45,10 @@
             buttonState.value[i].incorrect = true;
         }
     }
+
+    const refreshPage = () => {
+        router.go();
+    }
 </script>
 <template>
     <div class="transfer-wizard">
@@ -69,11 +75,20 @@
                 {{  player.name }}
             </button>
         </div>
+        <div class="next-question">
+            <button @click="refreshPage">New Question</button>
+        </div>
     </div>
 </template>
 <style scoped>
     .question {
         display: flex;
+    }
+    .question div {
+        border: 2px solid var(--ptku-blue);
+        border-radius: 15px;
+        color: var(--ptku-blue);
+        padding: 10px;
     }
     .answers {
         align-items: center;
@@ -118,6 +133,13 @@
     .answers button.incorrect {
         color: var(--color-background);
         background-color: rgba(var(--color-background), 0);
+    }
+    .next-question {
+        margin-top: 50px;
+        text-align: center;
+    }
+    .next-question button {
+        cursor: pointer;
     }
 
 @keyframes correct {
