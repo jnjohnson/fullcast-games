@@ -85,12 +85,29 @@
 
     .question {
         display: flex;
+        gap: 20px;
+        margin-top: 25px;
         
         div {
             border: 2px solid base.$ptku-blue;
             border-radius: 15px;
             color: base.$ptku-blue;
             padding: 10px;
+            position: relative;
+
+            &::after {
+                background-color: base.$ptku-blue;
+                content: '';
+                height: 2px;
+                position: absolute;
+                top: 50%;
+                transform: translateY(-50%);
+                right: -22px;
+                width: 20px;
+            }
+            &:last-of-type::after {
+                content: none;
+            }
         }
     }
     .answers {
@@ -148,6 +165,31 @@
             cursor: pointer;
         }
     }
+
+@media screen and (max-width: 600px) {
+    .question {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        margin-top: 25px;
+        
+        div {
+            width: 200px;
+            text-align: center;
+
+            &::after {
+                background-color: base.$ptku-blue;
+                bottom: -22px;
+                content: '';
+                height: 20px;
+                left: 50%;
+                top: auto;
+                transform: translateX(-50%);
+                width: 2px;
+            }
+        }
+    }
+}
 
 @keyframes correct {
     to {
