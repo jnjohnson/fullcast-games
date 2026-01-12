@@ -35,11 +35,11 @@
         let res = await response;
         const body = await res.json();
         buttonState.value[i].waiting = false;
-        if (pid == body.correctPid) {
+        if (body.pids.includes(pid)) {
             buttonState.value[i].correct = true;
         } else {
             buttonState.value.forEach(button => {
-                if (button.pid == body.correctPid) {
+                if (body.pids.includes(button.pid)) {
                     button.correct = true;
                 }
             });

@@ -25,9 +25,11 @@ async function checkAnswer(req, env) {
         .prepare("SELECT PlayerId FROM PlayerTransfers WHERE Transfers = ?")
         .bind(JSON.stringify(body.question))
         .run();
-
+    const pids = results.map((player) => {
+        return player.PlayerId;
+    });
     return new Response(JSON.stringify({
-        correctPid: results[0].PlayerId
+        pids: pids
     }), { status: 200 });
 }
 
