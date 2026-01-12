@@ -4,6 +4,7 @@
 
     const router = useRouter();
     let buttonState = ref(new Array(4));
+    let showNewQuestionButton = false;
     let response = await fetch('/api/transfer-wizard/get-players');
     let res = await response.json();
     
@@ -44,6 +45,7 @@
             });
             buttonState.value[i].incorrect = true;
         }
+        showNewQuestionButton = true;
     }
 
     const refreshPage = () => {
@@ -75,7 +77,7 @@
                 {{  player.name }}
             </button>
         </div>
-        <div class="next-question">
+        <div v-if="showNewQuestionButton" class="next-question">
             <button @click="refreshPage">New Question</button>
         </div>
     </div>
