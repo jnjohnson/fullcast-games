@@ -1,4 +1,4 @@
-@import './base.scss';
+@use 'base';
 
 #app {
   max-width: 1280px;
@@ -12,22 +12,22 @@ justify-content: center;
 }
 button, .button {
   text-decoration: none;
-  border: 1px solid $ptku-blue;
+  border: 1px solid base.$ptku-blue;
   border-radius: 15px;
-  color: $ptku-blue;
+  color: base.$ptku-blue;
   display: inline-block;
   letter-spacing: 1.2px;
   padding: 20px;
   transition: 0.4s;
 }
 button {
-    background: $color-background;
+    background: base.$color-background;
     font-family: inherit;
 }
 
 @media (hover: hover) {
   button:hover, .button:hover {
-    background-color: $ptku-blue;
+    background-color: base.$ptku-blue;
     color: #222222;
   }
 }
