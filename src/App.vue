@@ -6,8 +6,8 @@ import { RouterView } from 'vue-router'
     <header>
         <RouterLink to="/"><img alt="Shutdown Fullcast moon snake logo" class="logo" src="@/assets/fullcast-logo.jpg" width="125" height="125" /></RouterLink>
         <div>
-            <h1>jigsaw-puppet.horse</h1>
-            <p>The only collection of games based on bits<br/>from the internet's only college football podcast.</p>
+            <h1>jigsaw.horse</h1>
+            <p>The only game based on a bit from the internet's only college football podcast</p>
         </div>
     </header>
     <Suspense>

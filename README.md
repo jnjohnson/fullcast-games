@@ -1,24 +1,5 @@
 # fullcast-games
 
-This template should help get you started developing with Vue 3 in Vite.
-
-## Recommended IDE Setup
-
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
-
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd) 
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
 ## Project Setup
 
 ```sh
@@ -31,8 +12,50 @@ npm install
 npm run dev
 ```
 
+### Querying the DB
+```sh
+npx wranger d1 execute [db_name] --command [command]
+```
+
+For querying the local instance of your DB, add the --local flag
+
+### Testing Cron Jobs
+```sh
+npx wrangler dev --test-scheduled
+```
+
+Then in a new shell:
+```sh
+curl "http://localhost:8787/__scheduled"
+```
+
 ### Compile and Minify for Production
 
 ```sh
 npm run build
 ```
+
+### BUGGED INPUTS
+Q:
+{
+    "question":"[\"New Mexico\",\"UTSA\"]",
+    "players":[
+        {
+            "name":"Brendan Sorsby",
+            "id":4961
+        },
+        {
+            "name":"John Blunt Jr.",
+            "id":2554
+        },
+        {
+            "name":"CJ Smith",
+            "id":5079
+        },
+        {
+            "name":"CJ James",
+            "id":5838
+        }
+    ]
+}
+A: "correctPid":5651
