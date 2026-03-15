@@ -5,7 +5,8 @@ export default {
 		const { pathname } = new URL(request.url);
 
         if (pathname === "/api/transfer-wizard/get-players") {
-            return getPlayers(env);
+            const difficulty = new URL(request.url).searchParams.get('difficulty') ?? 'sickos';
+            return getPlayers(env, difficulty);
 		} else if (pathname === "/api/transfer-wizard/submit"){
             return checkAnswer(request, env);
         } else {

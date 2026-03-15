@@ -1,18 +1,39 @@
 var p4_schools = ["Alabama","Arizona","Arizona State","Arkansas","Auburn","Baylor","Boston College","BYU","California","Cincinnati","Clemson","Colorado","Duke","Florida","Florida State","Georgia","Georgia Tech","Houston","Illinois","Indiana","Iowa","Iowa State","Kansas","Kansas State","Kentucky","Louisville","LSU","Maryland","Miami","Michigan","Michigan State","Minnesota","Mississippi State","Missouri","NC State","Nebraska","North Carolina","Northwestern","Ohio State","Oklahoma","Oklahoma State","Ole Miss","Oregon","Penn State","Pittsburgh","Purdue","Rutgers","SMU","South Carolina","Stanford","Syracuse","TCU","Tennessee","Texas","Texas A&M","Texas Tech","UCF","UCLA","USC","Utah","Vanderbilt","Virginia","Virginia Tech","Wake Forest","Washington","West Virginia","Wisconsin"];
 
-async function getPlayers(env) {
+async function getPlayers(env, difficulty) {
     const max = 4;
-    const answerIndex = Math.floor(Math.random() * max);
-    const { results } = await env.games_db
-        .prepare("SELECT * FROM PlayerTransfers ORDER BY RANDOM() LIMIT ?")
-        .bind(max)
+    let where = '';
+    if (difficulty === 'easy') {
+        where = "WHERE InP4 = 1 AND Position IN ('QB')";
+    } else if (difficulty === 'medium') {
+        where = "WHERE InP4 = 1 AND Position IN ('QB', 'RB', 'WR')";
+    } else if (difficulty === 'hard') {
+        where = "WHERE (WasInP4 = 1 OR InP4 = 1) AND Position IN ('QB', 'RB', 'WR')";
+    }
+
+    const { results: [{ cnt }] } = await env.games_db
+        .prepare(`SELECT COUNT(*) AS cnt FROM PlayerTransfers ${where}`)
         .run();
+
+    const offsets = new Set();
+    while (offsets.size < Math.min(max, cnt)) {
+        offsets.add(Math.floor(Math.random() * cnt));
+    }
+
+    const rows = await env.games_db.batch(
+        [...offsets].map(offset =>
+            env.games_db.prepare(`SELECT * FROM PlayerTransfers ${where} LIMIT 1 OFFSET ?`).bind(offset)
+        )
+    );
+    const results = rows.map(r => r.results[0]);
+
+    const answerIndex = Math.floor(Math.random() * results.length);
     const question = results[answerIndex].Transfers;
     const players = results.map((player) => {
         const name = player.FirstName + ' ' + player.LastName;
         return {name: name, id: player.PlayerId};
     });
-    
+
     return new Response(JSON.stringify({
         question: question,
         players: players,
@@ -35,7 +56,7 @@ async function checkAnswer(req, env) {
 
 async function findPlayer(transfer, env) {
     return env.games_db
-                .prepare("SELECT PlayerId, Transfers, instr(Transfers, ?1) OriginPos FROM PlayerTransfers WHERE FirstName = ?2 AND LastName = ?3 AND Position = ?4 AND OriginPos > 0")
+                .prepare("SELECT PlayerId, Transfers, instr(Transfers, ?1) OriginPos FROM PlayerTransfers WHERE FirstName = ?2 AND LastName = ?3 AND Position = ?4 AND instr(Transfers, ?1) > 0")
                 .bind(transfer.origin, transfer.firstName, transfer.lastName, transfer.position)
                 .run();
 }
