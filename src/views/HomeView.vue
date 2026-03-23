@@ -4,6 +4,7 @@
             <h2>Fullcast Games</h2>
             <p>Test your knowledge of the Transfer Wizard's spells and incantations.</p>
             <RouterLink to="/transfer-wizard" class="button">Transfer Wizard</RouterLink>
+            <RouterLink to="/guys" class="button">Remember Some Guys</RouterLink>
         </section>
     </main>
 </template>

@@ -46,7 +46,7 @@ Indexed on `(FirstName, LastName, Position)`.
 
 ## Game Flow
 
-1. `GET /api/transfer-wizard/get-players` returns a random transfer route (2-school JSON array) and 4 random player names/IDs.
+1. `GET /api/transfer-wizard/get-players` returns a random transfer route (multi-school JSON array) and 4 random player names/IDs.
 2. Player picks one of the 4 buttons; the selection POSTs to `/api/transfer-wizard/submit` with the question array.
 3. Server queries all players whose `Transfers` JSON matches, returning an array of correct IDs.
 4. Correct selections animate green; incorrect animate red and reveal the correct answer(s).

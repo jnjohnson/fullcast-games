@@ -88,19 +88,19 @@
             <div v-else class="difficulty-buttons">
                 <button @click="selectDifficulty('easy')">
                     <span class="diff-label">Easy</span>
-                    <span class="diff-desc">QB/RB/WR currently at a Power 4 school</span>
+                    <span class="diff-desc">QB's currently at a P4 school</span>
                 </button>
                 <button @click="selectDifficulty('medium')">
                     <span class="diff-label">Medium</span>
-                    <span class="diff-desc">QB/RB/WR with any Power 4 history</span>
+                    <span class="diff-desc">QB/RB/WR with any P4 history</span>
                 </button>
                 <button @click="selectDifficulty('hard')">
                     <span class="diff-label">Hard</span>
-                    <span class="diff-desc">All positions with any Power 4 history</span>
+                    <span class="diff-desc">All positions with any P4 history</span>
                 </button>
                 <button @click="selectDifficulty('sickos')">
                     <span class="diff-label">Sickos</span>
-                    <span class="diff-desc">All positions from any Division 1 team</span>
+                    <span class="diff-desc">All positions from any D1 school</span>
                 </button>
             </div>
         </div>

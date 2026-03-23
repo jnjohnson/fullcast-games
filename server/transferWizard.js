@@ -1,5 +1,10 @@
 var p4_schools = ["Alabama","Arizona","Arizona State","Arkansas","Auburn","Baylor","Boston College","BYU","California","Cincinnati","Clemson","Colorado","Duke","Florida","Florida State","Georgia","Georgia Tech","Houston","Illinois","Indiana","Iowa","Iowa State","Kansas","Kansas State","Kentucky","Louisville","LSU","Maryland","Miami","Michigan","Michigan State","Minnesota","Mississippi State","Missouri","NC State","Nebraska","North Carolina","Northwestern","Ohio State","Oklahoma","Oklahoma State","Ole Miss","Oregon","Penn State","Pittsburgh","Purdue","Rutgers","SMU","South Carolina","Stanford","Syracuse","TCU","Tennessee","Texas","Texas A&M","Texas Tech","UCF","UCLA","USC","Utah","Vanderbilt","Virginia","Virginia Tech","Wake Forest","Washington","West Virginia","Wisconsin"];
 
+// Selects 4 random players from PlayerTransfers filtered by difficulty, then picks one of them as
+// the question. Returns a JSON response with `question` (the chosen player's Transfers JSON string)
+// and `players` (array of { name, id } for all 4 choices).
+// - difficulty: 'easy' (QB in P4), 'medium' (QB/RB/WR in P4), 'hard' (QB/RB/WR with any P4 history),
+//   or 'sickos' (no filter).
 async function getPlayers(env, difficulty) {
     const max = 4;
     let where = '';
@@ -40,6 +45,10 @@ async function getPlayers(env, difficulty) {
     }), { status: 200 });
 }
 
+// Validates a player's answer for the transfer wizard game. Reads `question` (a multi-element school
+// array) from the POST body, queries PlayerTransfers for all players whose Transfers JSON matches
+// that route, and returns a JSON response with `pids` (array of matching PlayerId integers).
+// Multiple players can share the same transfer route, so pids may contain more than one entry.
 async function checkAnswer(req, env) {
     const body = await req.json();
     const { results } = await env.games_db
@@ -54,6 +63,11 @@ async function checkAnswer(req, env) {
     }), { status: 200 });
 }
 
+// Looks up a player in PlayerTransfers by name, position, and origin school. Uses SQLite's instr()
+// to confirm the origin appears somewhere in the Transfers JSON string, guarding against false
+// positives on players with no transfer history from that school.
+// - transfer: object with { firstName, lastName, position, origin } from the CFBD portal API.
+// Returns the raw D1 result object ({ results: [...] }) with PlayerId, Transfers, and OriginPos.
 async function findPlayer(transfer, env) {
     return env.games_db
                 .prepare("SELECT PlayerId, Transfers, instr(Transfers, ?1) OriginPos FROM PlayerTransfers WHERE FirstName = ?2 AND LastName = ?3 AND Position = ?4 AND instr(Transfers, ?1) > 0")
@@ -61,6 +75,10 @@ async function findPlayer(transfer, env) {
                 .run();
 }
 
+// Inserts a new row into PlayerTransfers for a player not yet in the database.
+// Derives WasInP4 and InP4 by checking origin/destination against the p4_schools list.
+// Transfers is stored as a JSON array string: ["origin","destination"].
+// - transfer: object with { firstName, lastName, position, origin, destination }.
 function addNewPlayer(transfer, env) {
     let inP4 = p4_schools.includes(transfer.destination);
     let wasInP4 = p4_schools.includes(transfer.origin);
@@ -72,6 +90,11 @@ function addNewPlayer(transfer, env) {
     return;
 }
 
+// Appends a new destination to an existing player's Transfers JSON string and updates InP4.
+// Returns false (no-op) if the destination is already the last entry in Transfers, meaning the
+// player's current location is already recorded. Returns true if the update was written to D1.
+// - player: a PlayerTransfers row with at least { PlayerId, Transfers }.
+// - transfer: object with { destination } from the CFBD portal API.
 function updatePlayer(player, transfer, env) {
     let transferStr = player.Transfers;
 
@@ -97,4 +120,46 @@ function updatePlayer(player, transfer, env) {
     }
 }
 
-export { getPlayers, checkAnswer, findPlayer, addNewPlayer, updatePlayer };
+// Fetches the current year's transfer portal data from the CFBD API and upserts it into
+// PlayerTransfers. For each transfer with both an origin and destination, it either inserts a new
+// player or appends the destination to an existing player's Transfers history. Logs a summary of
+// added/updated/skipped counts on completion.
+async function syncTransfers(env) {
+    let response = await fetch('https://api.collegefootballdata.com/player/portal?year=2026', {
+        headers: {
+            "accept": "application/json",
+            "Authorization": env.CFBD_TOKEN
+        }
+    });
+    let res = await response.json();
+    let added = 0;
+    let updated = 0;
+    let skipped = 0;
+    let result;
+    for (const transfer of res) {
+        // If both are not present, skip player for this season
+        if (transfer.origin && transfer.destination) {
+            const { results } = await findPlayer(transfer, env);
+            if (results.length == 0) {
+                addNewPlayer(transfer, env);
+                added++;
+            } else if (results.length == 1) {
+                result = updatePlayer(results[0], transfer, env);
+                if (result) {
+                    updated++;
+                } else {
+                    skipped++;
+                }
+            } else {
+                console.error('multiple players found!');
+                console.error('results:');
+                console.error(results);
+                console.error('transfer:');
+                console.error(transfer);
+            }
+        }
+    };
+    console.log(`Transfer sync complete — added: ${added}, updated: ${updated}, skipped: ${skipped}`);
+}
+
+export { getPlayers, checkAnswer, findPlayer, addNewPlayer, updatePlayer, syncTransfers };

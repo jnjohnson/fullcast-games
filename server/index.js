@@ -1,4 +1,5 @@
-import { getPlayers, checkAnswer, findPlayer, addNewPlayer, updatePlayer } from './transferWizard.js';
+import { getPlayers, checkAnswer, syncTransfers } from './transferWizard.js';
+import { syncPlayers, getRandomPlayer, getPlayerById, getPlayerStats } from './guys.js';
 
 export default {
 	async fetch(request, env) {
@@ -9,6 +10,12 @@ export default {
             return getPlayers(env, difficulty);
 		} else if (pathname === "/api/transfer-wizard/submit"){
             return checkAnswer(request, env);
+        } else if (pathname === "/api/guys/random-player") {
+            return getRandomPlayer(env);
+        } else if (pathname === "/api/guys/player") {
+            return getPlayerById(request, env);
+        } else if (pathname === "/api/guys/player-stats") {
+            return getPlayerStats(request, env);
         } else {
             return new Response(null, { status: 404 });
         }
@@ -16,46 +23,16 @@ export default {
 	},
 
     async scheduled(controller, env, ctx) {
-        console.log("cron processing");
-        let response = await fetch('https://api.collegefootballdata.com/player/portal?year=2026', {
-            headers: {
-                "accept": "application/json",
-                "Authorization": env.CFBD_TOKEN
-            }
-        });
-        let res = await response.json();
-        let np = 0;
-        let ep = 0;
-        let sp = 0;
-        let result;
-        console.log(res.length);
-        for (const transfer of res) {
-            // If both are not present, skip player for this season
-            if (transfer.origin && transfer.destination) {
-                const { results } = await findPlayer(transfer, env);
-                if (results.length == 0) {
-                    addNewPlayer(transfer, env);
-                    np++;
-                } else if (results.length == 1) {
-                    result = updatePlayer(results[0], transfer, env);
-                    if (result) {
-                        ep++;
-                    } else {
-                        sp++;
-                    }
-                } else {
-                    console.error('multiple players found!');
-                    console.error('results:');
-                    console.error(results);
-                    console.error('transfer:');
-                    console.error(transfer);
-                }
-            }
-        };
-        console.log('new players added: ' + np);
-        console.log('existing players updated: ' + ep);
-        console.log('existing players skipped: ' + sp);
-        console.log("cron processed");
-        return new Response(null, { status: 200 });
+        if (controller.cron === "0 0 1 8 *") {
+            console.log("Players sync starting");
+            await syncPlayers(env);
+            console.log("Players sync complete");
+            return;
+        } else if (controller.cron === "0 0 * * sun") {
+            console.log("Transfer sync processing");
+            await syncTransfers(env);
+            console.log("Transfer sync complete");
+        }
+
     }
 };

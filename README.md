@@ -14,7 +14,7 @@ npm run dev
 
 ### Querying the DB
 ```sh
-npx wranger d1 execute [db_name] --command [command]
+npx wrangler d1 execute [db_name] --command [command]
 ```
 
 For querying the local instance of your DB, add the --local flag
