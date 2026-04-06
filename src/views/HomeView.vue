@@ -1,9 +1,13 @@
 <template>
     <main>
         <section>
-            <h2>Fullcast Games</h2>
-            <p>Test your knowledge of the Transfer Wizard's spells and incantations.</p>
+            <h2>Transfer Wizard</h2>
+            <p>Test your knowledge of the Wizard's spells and incantations.</p>
             <RouterLink to="/transfer-wizard" class="button">Transfer Wizard</RouterLink>
+        </section>
+        <section>
+            <h2>Remember Some Guys</h2>
+            <p>Sit back and be reminded of Some Guys of yore.</p>
             <RouterLink to="/guys" class="button">Remember Some Guys</RouterLink>
         </section>
     </main>
@@ -16,7 +20,7 @@
         align-items: center;
         display: flex;
         justify-content: center;
-        min-height: calc(100vh - 230px);
+        flex-direction: column;
 
         section {
             align-items: center;
