@@ -168,6 +168,7 @@
             width: 100%;
 
             button {
+                border: none;
                 cursor: pointer;
                 display: flex;
                 flex-direction: column;
@@ -189,16 +190,16 @@
                 }
 
                 &::after {
-                    background-image: linear-gradient(to bottom right, base.$incorrect-red 0%, base.$incorrect-red 25%, base.$ptku-pink 33%, base.$ptku-blue 66%, base.$correct-green 75%, base.$correct-green 100%);
+                    background-image: linear-gradient(to bottom right, base.$ptku-pink 0%, base.$ptku-blue 100%);
                     background-position: center;
-                    background-size: 400% 400%;
+                    background-size: 100%;
                     border-radius: 15px;
                     content: '';
-                    height: calc(100% + 4px);
+                    height: calc(100% + 6px);
                     position: absolute;
-                    top: -2px;
-                    left: -2px;
-                    width: calc(100% + 4px);
+                    top: -3px;
+                    left: -3px;
+                    width: calc(100% + 6px);
                     z-index: -1;
                 }
 
@@ -285,7 +286,6 @@
         grid-template-columns: 1fr 1fr;
         gap: 20px;
         margin-top: 40px;
-        max-width: 700px;
         width: 100%;
 
         button {
@@ -311,11 +311,11 @@
                 background-size: 400% 400%;
                 border-radius: 15px;
                 content: '';
-                height: calc(100% + 4px);
+                height: calc(100% + 6px);
                 position: absolute;
-                top: -2px;
-                left: -2px;
-                width: calc(100% + 4px);
+                top: -3px;
+                left: -3px;
+                width: calc(100% + 6px);
                 z-index: -1;
             }
             &:hover,
