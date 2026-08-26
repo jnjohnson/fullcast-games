@@ -18,7 +18,7 @@ import { RouterView } from 'vue-router'
             </template>
         </Suspense>
     </main>
-    <cite>All data and statistics provided by <a target="_blank" href="https://collegefootballdata.com/">collegefootballdata.com</a></cite>
+    <cite>All data provided by <a target="_blank" href="https://collegefootballdata.com/">collegefootballdata.com</a></cite>
 </template>
 
 <style scoped lang="scss">
