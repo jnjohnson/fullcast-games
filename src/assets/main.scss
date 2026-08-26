@@ -22,7 +22,11 @@ button, .button {
 }
 button {
     background: base.$color-background;
+    cursor: pointer;
     font-family: inherit;
+}
+.button-alternate {
+    
 }
 
 @media (hover: hover) {

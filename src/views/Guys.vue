@@ -140,6 +140,7 @@
 
 <style scoped lang="scss">
     @use '../assets/base';
+    @use '../assets/main.scss';
 
     .guys {
         display: flex;
@@ -172,39 +173,6 @@
             color: base.$color-text;
             font-size: 1.1rem;
             opacity: 0.8;
-        }
-
-        button {
-            cursor: pointer;
-            font-size: 1.1rem;
-            margin-top: 10px;
-            min-width: 220px;
-            padding: 14px 24px;
-            position: relative;
-
-            &::after {
-                background-image: linear-gradient(to bottom right, base.$incorrect-red 0%, base.$incorrect-red 25%, base.$ptku-pink 33%, base.$ptku-blue 66%, base.$correct-green 75%, base.$correct-green 100%);
-                background-position: center;
-                background-size: 400% 400%;
-                border-radius: 15px;
-                content: '';
-                height: calc(100% + 4px);
-                position: absolute;
-                top: -2px;
-                left: -2px;
-                width: calc(100% + 4px);
-                z-index: -1;
-            }
-
-            &:hover:not(:disabled) {
-                color: base.$color-background;
-                background-color: rgba(base.$color-background, 0);
-            }
-
-            &:disabled {
-                opacity: 0.6;
-                cursor: default;
-            }
         }
     }
 
