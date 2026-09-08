@@ -1,5 +1,5 @@
-import { getPlayers, checkAnswer, syncTransfers } from './transferWizard.js';
-import { syncPlayers, getRandomPlayer, getPlayerById, getPlayerStats } from './guys.js';
+import { getPlayers, checkAnswer } from './transferWizard.js';
+import { getRandomPlayer, getPlayerById, getPlayerStats } from './guys.js';
 
 export default {
 	async fetch(request, env) {
@@ -19,20 +19,5 @@ export default {
         } else {
             return new Response(null, { status: 404 });
         }
-
 	},
-
-    async scheduled(controller, env, ctx) {
-        if (controller.cron === "0 0 1 8 *") {
-            console.log("Players sync starting");
-            await syncPlayers(env);
-            console.log("Players sync complete");
-            return;
-        } else if (controller.cron === "0 0 * * sun") {
-            console.log("Transfer sync processing");
-            await syncTransfers(env);
-            console.log("Transfer sync complete");
-        }
-
-    }
 };
