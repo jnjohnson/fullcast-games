@@ -1,8 +1,5 @@
 <script setup>
     import { ref } from 'vue';
-    import { useRouter } from 'vue-router';
-
-    const router = useRouter();
 
     function getCookie(name) {
         const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
@@ -24,7 +21,7 @@
         loading.value = true;
         const response = await fetch(`/api/transfer-wizard/get-players?difficulty=${level}`);
         const res = await response.json();
-        question.value = JSON.parse(res.question);
+        question.value = res.question;
         answers.value = res.players;
         buttonState.value = answers.value.map(player => ({
             pid: player.id,
@@ -54,15 +51,15 @@
         buttonState.value[i].waiting = true;
         const response = await fetch('/api/transfer-wizard/submit', {
             method: "POST",
-            body: JSON.stringify({ question: question.value })
+            body: JSON.stringify({question: question.value})
         });
         const body = await response.json();
         buttonState.value[i].waiting = false;
-        if (body.pids.includes(pid)) {
+        if (body.pid == pid) {
             buttonState.value[i].correct = true;
         } else {
             buttonState.value.forEach(button => {
-                if (body.pids.includes(button.pid)) {
+                if (body.pid.includes(button.pid)) {
                     button.correct = true;
                 }
             });
@@ -70,8 +67,6 @@
         }
         showNewQuestionButton.value = true;
     }
-
-    const refreshPage = () => { router.go(); }
 
     if (difficulty.value) {
         fetchQuestion(difficulty.value);
@@ -88,15 +83,15 @@
             <div v-else class="difficulty-buttons">
                 <button @click="selectDifficulty('easy')">
                     <span class="diff-label">Easy</span>
-                    <span class="diff-desc">QB's currently at a P4 school</span>
+                    <span class="diff-desc">QBs currently at a P4 school</span>
                 </button>
                 <button @click="selectDifficulty('medium')">
                     <span class="diff-label">Medium</span>
-                    <span class="diff-desc">QB/RB/WR with any P4 history</span>
+                    <span class="diff-desc">QB/RB/WR currently at a P4 school</span>
                 </button>
                 <button @click="selectDifficulty('hard')">
                     <span class="diff-label">Hard</span>
-                    <span class="diff-desc">All positions with any P4 history</span>
+                    <span class="diff-desc">All positions currently at a P4 school</span>
                 </button>
                 <button @click="selectDifficulty('sickos')">
                     <span class="diff-label">Sickos</span>
@@ -108,11 +103,14 @@
         <!-- Question screen -->
         <template v-else>
             <h2>THE TRANSFER WIZARD</h2>
-            <p>Choose the correct player based on the trajectory they took through the transfer portal</p>
+            <p>Choose the correct player based on their trajectory through the transfer portal</p>
             <button class="change-difficulty" @click="changeDifficulty">Change Difficulty</button>
             <div class="question">
-                <div class="destination" v-for="destination in question">
-                    {{ destination }}
+                <div class="transfer" v-for="destination in question">
+                    <span class="year" v-if="destination.season">
+                        {{ destination.season }}
+                    </span>
+                    {{ destination.team }}
                 </div>
             </div>
             <div class="answers">
@@ -131,7 +129,7 @@
                 </button>
             </div>
             <div v-if="showNewQuestionButton" class="next-question">
-                <button @click="refreshPage">New Question</button>
+                <button @click="fetchQuestion(difficulty)">New Question</button>
             </div>
         </template>
     </div>
@@ -234,10 +232,13 @@
 
     .question {
         display: flex;
-        gap: 20px;
+        justify-content: center;
+        gap: 70px;
         margin-top: 25px;
+        position: relative;
 
-        div {
+        
+        .transfer {
             border: 2px solid base.$ptku-blue;
             border-radius: 15px;
             color: base.$ptku-blue;
@@ -246,6 +247,12 @@
             position: relative;
             text-align: center;
 
+            span.year {
+                color: base.$ptku-blue;
+                position: absolute;
+                left: -56px;
+                top: -8px;
+            }
             &::after {
                 background-color: base.$ptku-blue;
                 content: '';
@@ -253,8 +260,8 @@
                 position: absolute;
                 top: 50%;
                 transform: translateY(-50%);
-                right: -22px;
-                width: 20px;
+                right: -72px;
+                width: 70px;
             }
             &:last-of-type::after {
                 content: none;
@@ -262,15 +269,21 @@
         }
 
         @media screen and (max-width: 600px) {
+            align-items: center;
             flex-direction: column;
+            gap: 50px;
 
-            div {
+            .transfer {
                 width: 200px;
                 text-align: center;
 
+                span.year {
+                    left: 45px;
+                    top: -38px;
+                }
                 &::after {
-                    bottom: -22px;
-                    height: 20px;
+                    bottom: -52px;
+                    height: 50px;
                     left: 50%;
                     right: auto;
                     top: auto;
