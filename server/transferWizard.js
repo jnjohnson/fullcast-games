@@ -135,15 +135,7 @@ async function getPlayers(env, difficulty) {
 
         for (let i = 0; i < transfers.length; i++) {
             const candidate = transfers[(startIdx + i) % transfers.length];
-            
-            // Players with weird edge cases
-            // Stephon Wright - Player changes position at a location. (Texas Southern. Went from playing DL to EDGE)
-            // Daniel Ogundipe - Player has null team between two valid teams (Old Dominion -> null -> UTSA)
-            // Daniel Ogundipe - Player has null team as last team (FIU -> null)
-            // const chain = await GetTransferRecord('Daniel', 'Ogundipe', 'OT', env);
-            const chain = await GetTransferRecord('Stephon', 'Wright', 'DL', env);
-            // const chain = await GetTransferRecord('CamRon', 'Jackson', 'DL', env);
-            // const chain = await GetTransferRecord(candidate.firstName, candidate.lastName, candidate.position.position, env);
+            const chain = await GetTransferRecord(candidate.firstName, candidate.lastName, candidate.position.position, env);
             
             if (chain.length > 2 || (chain.length == 2 && chain[1].school != 'N/A')) {
                 question = chain;
