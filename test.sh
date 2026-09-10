@@ -1,1 +1,0 @@
-curl "http://localhost:8787/__scheduled?cron=0+0+1+8+*"
