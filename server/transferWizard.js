@@ -109,13 +109,6 @@ async function GetTransferRecord(firstName, lastName, position, env) {
     return buildTransferChain(data.transfer);
 }
 
-// Computes a SHA-256 hex digest of a value's JSON representation. Used as a stable cache key.
-// TODO: SHA-256 seems like overkill and may be slowing the game down. See if there's a simper option
-async function hashValue(value) {
-    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(value)));
-    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
 // Selects 4 random unique players from the CFBD transfer portal, filtered by difficulty. Tries each
 // candidate (in random order) until one yields a valid transfer chain (≥ 2 stops). Returns 404 if all
 // candidates have degenerate chains (e.g. only one school, null destination).
@@ -145,7 +138,7 @@ async function getPlayers(env, difficulty) {
         }
     }
 
-    const cacheKey = await hashValue(question);
+    const cacheKey = JSON.stringify(question);
     await kvPut(cacheKey, questionPlayer, env);
 
     return Response.json({
@@ -162,7 +155,7 @@ async function getPlayers(env, difficulty) {
 // a JSON response with `pids` (array of "FirstName_LastName_Position" strings) for the correct player(s).
 async function checkAnswer(req, env) {
     const body = await req.json();
-    const cacheKey = await hashValue(body.question);
+    const cacheKey = JSON.stringify(body.question);
     const cached = await kvGet(cacheKey, env);
 
     if (!cached) {
@@ -173,4 +166,4 @@ async function checkAnswer(req, env) {
     return Response.json({ pid });
 }
 
-export { getPlayers, checkAnswer, hashValue, buildTransferChain };
+export { getPlayers, checkAnswer, buildTransferChain };
