@@ -134,7 +134,7 @@ describe("getPlayers", () => {
     expect(where.position.position._in).toEqual(expect.arrayContaining(["QB", "RB", "WR"]));
   });
 
-  it("hard difficulty passes no position filter", async () => {
+  it("hard difficulty passes QB/RB/WR position filter but no season filter", async () => {
     cfbd.cfbdGql
       .mockResolvedValueOnce({ transfer: FOUR_QB_TRANSFERS })
       .mockResolvedValueOnce({ transfer: ALPHA_ONE_HISTORY });
@@ -142,7 +142,8 @@ describe("getPlayers", () => {
     await getPlayers(mockEnv(), "hard");
 
     const { where } = cfbd.cfbdGql.mock.calls[0][1];
-    expect(where).not.toHaveProperty("position");
+    expect(where.position.position._in).toEqual(expect.arrayContaining(["QB", "RB", "WR"]));
+    expect(where).not.toHaveProperty("season");
   });
 
   it("retries to the next candidate when the first has a degenerate chain (from == to)", async () => {
@@ -161,14 +162,8 @@ describe("getPlayers", () => {
     expect(question.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("returns 404 when all 4 candidates have degenerate chains", async () => {
-    const degenerateHistory = [{ season: 2024, fromTeam: { school: "X" }, toTeam: null }];
-    cfbd.cfbdGql
-      .mockResolvedValueOnce({ transfer: FOUR_QB_TRANSFERS })
-      .mockResolvedValueOnce({ transfer: degenerateHistory })
-      .mockResolvedValueOnce({ transfer: degenerateHistory })
-      .mockResolvedValueOnce({ transfer: degenerateHistory })
-      .mockResolvedValueOnce({ transfer: degenerateHistory });
+  it("returns 404 when fetchRandomTransfers returns an empty list", async () => {
+    cfbd.cfbdGql.mockResolvedValueOnce({ transfer: [] });
 
     const res = await getPlayers(mockEnv(), "easy");
     expect(res.status).toBe(404);
@@ -189,7 +184,7 @@ describe("getPlayers", () => {
     expect(question).toEqual([
       { team: "Clemson" },
       { season: 2023, team: "South Carolina" },
-      { season: 2024, team: "Florida" },
+      { season: "N/A", team: "Florida" },
       { season: 2024, team: "Tennessee" },
     ]);
   });

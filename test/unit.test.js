@@ -1,31 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { hashValue, buildTransferChain } from "../server/transferWizard.js";
-
-describe("hashValue", () => {
-  it("returns a 64-character hex string", async () => {
-    const hash = await hashValue({ team: "Alabama" });
-    expect(hash).toMatch(/^[0-9a-f]{64}$/);
-  });
-
-  it("produces the same hash for identical inputs", async () => {
-    const a = await hashValue([{ team: "Virginia" }, { season: 2025, team: "UNLV" }]);
-    const b = await hashValue([{ team: "Virginia" }, { season: 2025, team: "UNLV" }]);
-    expect(a).toBe(b);
-  });
-
-  it("produces different hashes for different inputs", async () => {
-    const a = await hashValue([{ team: "Alabama" }]);
-    const b = await hashValue([{ team: "Georgia" }]);
-    expect(a).not.toBe(b);
-  });
-
-  it("is sensitive to key order differences in objects", async () => {
-    const a = await hashValue({ season: 2025, team: "UNLV" });
-    const b = await hashValue({ team: "UNLV", season: 2025 });
-    // JSON.stringify preserves insertion order, so these differ
-    expect(a).not.toBe(b);
-  });
-});
+import { buildTransferChain } from "../server/transferWizard.js";
 
 // ─── buildTransferChain ───────────────────────────────────────────────────────
 
@@ -45,8 +19,8 @@ describe("buildTransferChain", () => {
 
   it("builds a 3-stop chain for two consecutive transfers", () => {
     const chain = buildTransferChain([
-      row("Auburn",  "Oregon", 2022),
-      row("Oregon",  "LSU",    2024),
+      row("Auburn", "Oregon", 2022),
+      row("Oregon", "LSU",    2024),
     ]);
     expect(chain).toEqual([
       { team: "Auburn" },
@@ -63,35 +37,38 @@ describe("buildTransferChain", () => {
     expect(chain).toEqual([{ team: "Alabama" }, { season: 2024, team: "Georgia" }]);
   });
 
-  it("case 2: returns a length-1 array when fromTeam == toTeam and is the only row", () => {
+  it("case 2: returns a 1-stop chain when fromTeam == toTeam and is the only row", () => {
     const chain = buildTransferChain([row("Alabama", "Alabama", 2024)]);
-    expect(chain).toHaveLength(1);
-    expect(chain[0]).toEqual({ team: "Alabama" });
+    expect(chain).toEqual([{ team: "Alabama" }]);
   });
 
-  it("case 3: skips a null-toTeam row when other rows exist", () => {
+  it("case 3: shows N/A stop and re-inserts fromTeam when toTeam is null and another row follows", () => {
     const chain = buildTransferChain([
-      row("UTSA",    null,      2023),
-      row("UTSA",    "Texas",   2024),
+      row("UTSA", null,    2023),
+      row("UTSA", "Texas", 2024),
     ]);
-    expect(chain).toEqual([{ team: "UTSA" }, { season: 2024, team: "Texas" }]);
+    expect(chain).toEqual([
+      { team: "UTSA" },
+      { season: 2023, team: "N/A" },
+      { season: "N/A", team: "UTSA" },
+      { season: 2024, team: "Texas" },
+    ]);
   });
 
-  it("case 4: returns a length-1 array when toTeam is null and is the only row", () => {
+  it("case 4: produces a 2-stop chain with N/A destination when toTeam is null and is the only row", () => {
     const chain = buildTransferChain([row("Alabama", null, 2024)]);
-    expect(chain).toHaveLength(1);
-    expect(chain[0]).toEqual({ team: "Alabama" });
+    expect(chain).toEqual([{ team: "Alabama" }, { season: 2024, team: "N/A" }]);
   });
 
-  it("case 5: inserts an intermediate stop when fromTeam[N] differs from toTeam[N-1]", () => {
+  it("case 5: inserts an N/A-seasoned intermediate stop when fromTeam[N] differs from toTeam[N-1]", () => {
     const chain = buildTransferChain([
-      row("Clemson",        "South Carolina", 2023),
-      row("Florida",        "Tennessee",      2024),
+      row("Clemson", "South Carolina", 2023),
+      row("Florida", "Tennessee",      2024),
     ]);
     expect(chain).toEqual([
       { team: "Clemson" },
       { season: 2023, team: "South Carolina" },
-      { season: 2024, team: "Florida" },
+      { season: "N/A", team: "Florida" },
       { season: 2024, team: "Tennessee" },
     ]);
   });
