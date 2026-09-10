@@ -32,7 +32,7 @@
 
         const res = await fetch('/api/guys/random-player');
         if (!res.ok) {
-            error.value = 'No players in the database yet. Check back after August 1st!';
+            error.value = 'Ahh fuck, we can\'t remember a single guy right now. Check back later!';
             loading.value = false;
             return;
         }
@@ -60,7 +60,7 @@
     }
 
     function uniqueSchools(seasons) {
-        return [...new Set(seasons.map(s => s.team))].join(', ');
+        return [...new Set(seasons.map(s => s.team.school))].join(', ');
     }
 
     // Returns stat value or '—' if missing
@@ -84,8 +84,8 @@
             <div class="player-card">
                 <h2>{{ player.firstName }} {{ player.lastName }}</h2>
                 <div class="meta">
-                    <span class="position">{{ player.position }}</span>
-                    <span class="schools">{{ uniqueSchools(player.seasons) }}</span>
+                    <span class="position">{{ player.position.abbreviation }}</span>
+                    <span class="schools">{{ uniqueSchools(player.athleteTeams) }}</span>
                 </div>
             </div>
 

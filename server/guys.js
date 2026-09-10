@@ -39,25 +39,11 @@ const ATHLETE_FIELDS = `
     firstName
     lastName
     position { abbreviation }
-    athleteTeams(orderBy: { startYear: asc }) {
+    athleteTeams(orderBy: { startYear: ASC }) {
         startYear
         team { school }
     }
 `;
-
-// Converts a raw GraphQL athlete object into the API response shape.
-function formatAthlete(a) {
-    return {
-        id: a.id,
-        firstName: a.firstName,
-        lastName: a.lastName,
-        position: a.position?.abbreviation ?? '',
-        seasons: (a.athleteTeams ?? []).map(at => ({
-            year: String(at.startYear),
-            team: at.team?.school ?? '',
-        })),
-    };
-}
 
 // Returns a single random player from the CFBD athlete database as a JSON response.
 // Picks a random row using athleteAggregate count + random offset. Returns 404 if empty.
@@ -83,9 +69,11 @@ export async function getRandomPlayer(env) {
     `, { offset }, env);
 
     const player = data.athlete[0];
-    if (!player) return new Response(JSON.stringify({ error: 'No player found' }), { status: 404 });
+    if (!player) {
+        return new Response(JSON.stringify({ error: 'No player found' }), { status: 404 });
+    }
 
-    return Response.json(formatAthlete(player));
+    return Response.json(player);
 }
 
 // Fetches a single player by ID from the CFBD GraphQL API.
@@ -105,7 +93,7 @@ export async function getPlayerById(request, env) {
         return new Response(JSON.stringify({ error: 'Player not found' }), { status: 404 });
     }
 
-    return Response.json(formatAthlete(data.athleteByPk));
+    return Response.json(data.athleteByPk);
 }
 
 // Fetches season stats for a player from the CFBD GraphQL API.
