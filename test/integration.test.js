@@ -1,144 +1,247 @@
-import { env, SELF } from "cloudflare:test";
-import { describe, it, expect, beforeAll } from "vitest";
+import { env } from "cloudflare:test";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { getPlayers, checkAnswer } from "../server/transferWizard.js";
+import * as cfbd from "../server/cfbd.js";
 
-// Seed data designed so each difficulty filter has at least 4 matching rows:
-//   easy   (QB + InP4=1):                       players 1,5,6,7,10  → 5 rows
-//   medium (QB/RB/WR + InP4=1):                 players 1,2,5,6,7,9,10 → 7 rows
-//   hard   (QB/RB/WR + WasInP4=1 OR InP4=1):   players 1,2,5,6,7,8,9,10 → 8 rows
-//   sickos (all):                               all 10 rows
-const TEST_PLAYERS = [
-  { PlayerId: 1,  FirstName: "Alpha",   LastName: "One",   Position: "QB", WasInP4: 0, InP4: 1, Transfers: '["New Mexico","Alabama"]' },
-  { PlayerId: 2,  FirstName: "Beta",    LastName: "Two",   Position: "RB", WasInP4: 1, InP4: 1, Transfers: '["Ohio State","Georgia"]' },
-  { PlayerId: 3,  FirstName: "Gamma",   LastName: "Three", Position: "WR", WasInP4: 0, InP4: 0, Transfers: '["UTSA","Memphis"]' },
-  { PlayerId: 4,  FirstName: "Delta",   LastName: "Four",  Position: "TE", WasInP4: 0, InP4: 0, Transfers: '["FIU","UAB"]' },
-  { PlayerId: 5,  FirstName: "Epsilon", LastName: "Five",  Position: "QB", WasInP4: 1, InP4: 1, Transfers: '["Texas","USC"]' },
-  { PlayerId: 6,  FirstName: "Zeta",    LastName: "Six",   Position: "QB", WasInP4: 1, InP4: 1, Transfers: '["Texas","USC"]' },
-  { PlayerId: 7,  FirstName: "Eta",     LastName: "Seven", Position: "QB", WasInP4: 1, InP4: 1, Transfers: '["Michigan","Oregon"]' },
-  { PlayerId: 8,  FirstName: "Theta",   LastName: "Eight", Position: "RB", WasInP4: 1, InP4: 0, Transfers: '["Nebraska","UTSA"]' },
-  { PlayerId: 9,  FirstName: "Iota",    LastName: "Nine",  Position: "WR", WasInP4: 1, InP4: 1, Transfers: '["Penn State","Florida"]' },
-  { PlayerId: 10, FirstName: "Kappa",   LastName: "Ten",   Position: "QB", WasInP4: 0, InP4: 1, Transfers: '["FIU","Alabama"]' },
+vi.mock("../server/cfbd.js");
+
+// Minimal transfer record returned by fetchRandomTransfers
+function makeTransfer(firstName, lastName, position, fromSchool, toSchool) {
+  return {
+    firstName,
+    lastName,
+    position: { position },
+    fromTeam: { school: fromSchool },
+    toTeam: { school: toSchool },
+  };
+}
+
+// Mock env: CFBD_TOKEN is unused (cfbdGql is mocked), CFBD_CACHE is the real test KV binding.
+function mockEnv() {
+  return { CFBD_TOKEN: "Bearer test", CFBD_CACHE: env.CFBD_CACHE };
+}
+
+// Four distinct QB transfers into P4 schools — satisfies easy/medium difficulty.
+const FOUR_QB_TRANSFERS = [
+  makeTransfer("Alpha", "One",   "QB", "New Mexico", "Alabama"),
+  makeTransfer("Beta",  "Two",   "QB", "UTSA",       "Georgia"),
+  makeTransfer("Gamma", "Three", "QB", "FIU",        "Texas"),
+  makeTransfer("Delta", "Four",  "QB", "UAB",        "Ohio State"),
 ];
 
-beforeAll(async () => {
-  await env.games_db
-    .prepare(
-      "CREATE TABLE IF NOT EXISTS PlayerTransfers (PlayerId INTEGER PRIMARY KEY, FirstName TEXT, LastName TEXT, Position TEXT, WasInP4 INTEGER, InP4 INTEGER, Transfers TEXT)"
-    )
-    .run();
-  for (const p of TEST_PLAYERS) {
-    await env.games_db
-      .prepare(
-        "INSERT OR REPLACE INTO PlayerTransfers (PlayerId, FirstName, LastName, Position, WasInP4, InP4, Transfers) VALUES (?, ?, ?, ?, ?, ?, ?)"
-      )
-      .bind(p.PlayerId, p.FirstName, p.LastName, p.Position, p.WasInP4, p.InP4, p.Transfers)
-      .run();
-  }
+// Full transfer history returned by GetTransferRecord for Alpha One
+const ALPHA_ONE_HISTORY = [
+  { season: 2024, fromTeam: { school: "New Mexico" }, toTeam: { school: "Alabama" } },
+];
+
+beforeEach(() => {
+  vi.clearAllMocks();
 });
 
-describe("GET /api/transfer-wizard/get-players", () => {
-  it("returns 200 with a question string and 4 players", async () => {
-    const res = await SELF.fetch("http://fake-host/api/transfer-wizard/get-players");
+describe("getPlayers", () => {
+  it("returns 200 with a question array and 4 players", async () => {
+    cfbd.cfbdGql
+      .mockResolvedValueOnce({ transfer: FOUR_QB_TRANSFERS }) // fetchRandomTransfers
+      .mockResolvedValueOnce({ transfer: ALPHA_ONE_HISTORY }); // GetTransferRecord
+
+    const res = await getPlayers(mockEnv(), "easy");
+
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.question).toBeTypeOf("string");
-    expect(JSON.parse(body.question)).toHaveLength(2);
+    expect(Array.isArray(body.question)).toBe(true);
+    expect(body.question.length).toBeGreaterThanOrEqual(1);
     expect(body.players).toHaveLength(4);
   });
 
-  it("easy difficulty only returns QB players currently in P4", async () => {
-    const res = await SELF.fetch("http://fake-host/api/transfer-wizard/get-players?difficulty=easy");
-    expect(res.status).toBe(200);
+  it("player IDs are formatted as FirstName_LastName_Position", async () => {
+    cfbd.cfbdGql
+      .mockResolvedValueOnce({ transfer: FOUR_QB_TRANSFERS })
+      .mockResolvedValueOnce({ transfer: ALPHA_ONE_HISTORY });
+
+    const res = await getPlayers(mockEnv(), "easy");
     const { players } = await res.json();
-    expect(players).toHaveLength(4);
+
     for (const player of players) {
-      const { results } = await env.games_db
-        .prepare("SELECT Position, InP4 FROM PlayerTransfers WHERE PlayerId = ?")
-        .bind(player.id)
-        .run();
-      expect(results[0].Position).toBe("QB");
-      expect(results[0].InP4).toBe(1);
+      expect(player.id).toMatch(/^\S+_\S+_\S+$/);
     }
   });
 
-  it("medium difficulty only returns QB/RB/WR players currently in P4", async () => {
-    const res = await SELF.fetch("http://fake-host/api/transfer-wizard/get-players?difficulty=medium");
-    expect(res.status).toBe(200);
-    const { players } = await res.json();
-    expect(players).toHaveLength(4);
-    for (const player of players) {
-      const { results } = await env.games_db
-        .prepare("SELECT Position, InP4 FROM PlayerTransfers WHERE PlayerId = ?")
-        .bind(player.id)
-        .run();
-      expect(["QB", "RB", "WR"]).toContain(results[0].Position);
-      expect(results[0].InP4).toBe(1);
+  it("question entries have a team field, and non-first entries have a season", async () => {
+    cfbd.cfbdGql
+      .mockResolvedValueOnce({ transfer: FOUR_QB_TRANSFERS })
+      .mockResolvedValueOnce({
+        transfer: [
+          { season: 2024, fromTeam: { school: "New Mexico" }, toTeam: { school: "Alabama" } },
+          { season: 2025, fromTeam: { school: "Alabama" },    toTeam: { school: "Georgia" } },
+        ],
+      });
+
+    const res = await getPlayers(mockEnv(), "easy");
+    const { question } = await res.json();
+
+    expect(question[0]).toHaveProperty("team");
+    expect(question[0]).not.toHaveProperty("season"); // first entry is origin, no season
+    for (const stop of question.slice(1)) {
+      expect(stop).toHaveProperty("team");
+      expect(stop).toHaveProperty("season");
     }
   });
 
-  it("hard difficulty only returns QB/RB/WR with any P4 history", async () => {
-    const res = await SELF.fetch("http://fake-host/api/transfer-wizard/get-players?difficulty=hard");
-    expect(res.status).toBe(200);
-    const { players } = await res.json();
-    expect(players).toHaveLength(4);
-    for (const player of players) {
-      const { results } = await env.games_db
-        .prepare("SELECT Position, WasInP4, InP4 FROM PlayerTransfers WHERE PlayerId = ?")
-        .bind(player.id)
-        .run();
-      expect(["QB", "RB", "WR"]).toContain(results[0].Position);
-      expect(results[0].WasInP4 === 1 || results[0].InP4 === 1).toBe(true);
-    }
+  it("returns 404 when GraphQL returns no transfers", async () => {
+    cfbd.cfbdGql.mockResolvedValueOnce({ transfer: [] });
+
+    const res = await getPlayers(mockEnv(), "easy");
+    expect(res.status).toBe(404);
   });
 
-  it("sickos difficulty returns players of any position", async () => {
-    const res = await SELF.fetch("http://fake-host/api/transfer-wizard/get-players?difficulty=sickos");
+  it("caches the question in KV so checkAnswer can verify it", async () => {
+    cfbd.cfbdGql
+      .mockResolvedValueOnce({ transfer: FOUR_QB_TRANSFERS })
+      .mockResolvedValueOnce({ transfer: ALPHA_ONE_HISTORY });
+
+    const getRes = await getPlayers(mockEnv(), "easy");
+    const { question } = await getRes.json();
+
+    // checkAnswer should resolve without 404 (i.e., find the KV entry)
+    const submitReq = new Request("http://fake/api/transfer-wizard/submit", {
+      method: "POST",
+      body: JSON.stringify({ question }),
+    });
+    const submitRes = await checkAnswer(submitReq, mockEnv());
+    expect(submitRes.status).toBe(200);
+  });
+
+  it("easy difficulty passes QB + toTeam school filter to the GraphQL query", async () => {
+    cfbd.cfbdGql
+      .mockResolvedValueOnce({ transfer: FOUR_QB_TRANSFERS })
+      .mockResolvedValueOnce({ transfer: ALPHA_ONE_HISTORY });
+
+    await getPlayers(mockEnv(), "easy");
+
+    const { where } = cfbd.cfbdGql.mock.calls[0][1];
+    expect(where.position.position._eq).toBe("QB");
+    expect(Array.isArray(where.toTeam.school._in)).toBe(true);
+  });
+
+  it("medium difficulty passes QB/RB/WR position filter", async () => {
+    cfbd.cfbdGql
+      .mockResolvedValueOnce({ transfer: FOUR_QB_TRANSFERS })
+      .mockResolvedValueOnce({ transfer: ALPHA_ONE_HISTORY });
+
+    await getPlayers(mockEnv(), "medium");
+
+    const { where } = cfbd.cfbdGql.mock.calls[0][1];
+    expect(where.position.position._in).toEqual(expect.arrayContaining(["QB", "RB", "WR"]));
+  });
+
+  it("hard difficulty passes no position filter", async () => {
+    cfbd.cfbdGql
+      .mockResolvedValueOnce({ transfer: FOUR_QB_TRANSFERS })
+      .mockResolvedValueOnce({ transfer: ALPHA_ONE_HISTORY });
+
+    await getPlayers(mockEnv(), "hard");
+
+    const { where } = cfbd.cfbdGql.mock.calls[0][1];
+    expect(where).not.toHaveProperty("position");
+  });
+
+  it("retries to the next candidate when the first has a degenerate chain (from == to)", async () => {
+    // First candidate's GetTransferRecord returns from == to (length-1 chain)
+    // Second candidate's GetTransferRecord returns a valid 2-stop chain
+    cfbd.cfbdGql
+      .mockResolvedValueOnce({ transfer: FOUR_QB_TRANSFERS })           // fetchRandomTransfers
+      .mockResolvedValueOnce({ transfer: [                               // GetTransferRecord call 1: degenerate
+          { season: 2024, fromTeam: { school: "Alabama" }, toTeam: { school: "Alabama" } },
+        ] })
+      .mockResolvedValueOnce({ transfer: ALPHA_ONE_HISTORY });           // GetTransferRecord call 2: valid
+
+    const res = await getPlayers(mockEnv(), "easy");
     expect(res.status).toBe(200);
-    const { players } = await res.json();
-    expect(players).toHaveLength(4);
+    const { question } = await res.json();
+    expect(question.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("returns 404 when all 4 candidates have degenerate chains", async () => {
+    const degenerateHistory = [{ season: 2024, fromTeam: { school: "X" }, toTeam: null }];
+    cfbd.cfbdGql
+      .mockResolvedValueOnce({ transfer: FOUR_QB_TRANSFERS })
+      .mockResolvedValueOnce({ transfer: degenerateHistory })
+      .mockResolvedValueOnce({ transfer: degenerateHistory })
+      .mockResolvedValueOnce({ transfer: degenerateHistory })
+      .mockResolvedValueOnce({ transfer: degenerateHistory });
+
+    const res = await getPlayers(mockEnv(), "easy");
+    expect(res.status).toBe(404);
+  });
+
+  it("question contains 4 stops when fromTeam[1] differs from toTeam[0] (chain gap)", async () => {
+    cfbd.cfbdGql
+      .mockResolvedValueOnce({ transfer: FOUR_QB_TRANSFERS })
+      .mockResolvedValueOnce({
+        transfer: [
+          { season: 2023, fromTeam: { school: "Clemson" },        toTeam: { school: "South Carolina" } },
+          { season: 2024, fromTeam: { school: "Florida" },         toTeam: { school: "Tennessee" } },
+        ],
+      });
+
+    const res = await getPlayers(mockEnv(), "easy");
+    const { question } = await res.json();
+    expect(question).toEqual([
+      { team: "Clemson" },
+      { season: 2023, team: "South Carolina" },
+      { season: 2024, team: "Florida" },
+      { season: 2024, team: "Tennessee" },
+    ]);
+  });
+
+  it("sickos difficulty passes no position or school filter", async () => {
+    cfbd.cfbdGql
+      .mockResolvedValueOnce({ transfer: FOUR_QB_TRANSFERS })
+      .mockResolvedValueOnce({ transfer: ALPHA_ONE_HISTORY });
+
+    await getPlayers(mockEnv(), "sickos");
+
+    const { where } = cfbd.cfbdGql.mock.calls[0][1];
+    expect(where).not.toHaveProperty("position");
+    expect(where).not.toHaveProperty("toTeam");
   });
 });
 
-describe("POST /api/transfer-wizard/submit", () => {
-  // The client parses res.question with JSON.parse before submitting, so the
-  // POST body sends an array. checkAnswer does JSON.stringify(body.question)
-  // which reconstructs the exact string stored in the Transfers column.
+describe("checkAnswer", () => {
+  it("returns pid matching the player cached from getPlayers", async () => {
+    cfbd.cfbdGql
+      .mockResolvedValueOnce({ transfer: FOUR_QB_TRANSFERS })
+      .mockResolvedValueOnce({ transfer: ALPHA_ONE_HISTORY });
 
-  it("returns the matching player PID for a correct answer", async () => {
-    const res = await SELF.fetch("http://fake-host/api/transfer-wizard/submit", {
+    const getRes = await getPlayers(mockEnv(), "easy");
+    const { question, players } = await getRes.json();
+
+    const submitReq = new Request("http://fake/api/transfer-wizard/submit", {
       method: "POST",
-      body: JSON.stringify({ question: ["New Mexico", "Alabama"] }),
+      body: JSON.stringify({ question }),
     });
-    expect(res.status).toBe(200);
-    const { pids } = await res.json();
-    expect(pids).toContain(1);
+    const submitRes = await checkAnswer(submitReq, mockEnv());
+    const { pid } = await submitRes.json();
+
+    // pid must be one of the player IDs returned by getPlayers
+    const validIds = players.map((p) => p.id);
+    expect(pid).toHaveLength(1);
+    expect(validIds).toContain(pid[0]);
   });
 
-  it("returns multiple PIDs when several players share the same transfer route", async () => {
-    const res = await SELF.fetch("http://fake-host/api/transfer-wizard/submit", {
+  it("returns 404 when the question was never cached", async () => {
+    const req = new Request("http://fake/api/transfer-wizard/submit", {
       method: "POST",
-      body: JSON.stringify({ question: ["Texas", "USC"] }),
+      body: JSON.stringify({ question: [{ team: "Nowhere" }, { season: 1900, team: "Nowhere" }] }),
     });
-    expect(res.status).toBe(200);
-    const { pids } = await res.json();
-    expect(pids).toHaveLength(2);
-    expect(pids).toContain(5);
-    expect(pids).toContain(6);
-  });
-
-  it("returns an empty pids array when the question matches no player", async () => {
-    const res = await SELF.fetch("http://fake-host/api/transfer-wizard/submit", {
-      method: "POST",
-      body: JSON.stringify({ question: ["Nowhere", "Nowhere"] }),
-    });
-    expect(res.status).toBe(200);
-    const { pids } = await res.json();
-    expect(pids).toHaveLength(0);
+    const res = await checkAnswer(req, mockEnv());
+    expect(res.status).toBe(404);
   });
 });
 
 describe("Routing", () => {
   it("unknown API path returns 404", async () => {
-    const res = await SELF.fetch("http://fake-host/api/unknown-endpoint");
+    const res = await fetch("http://localhost:5174/api/unknown-endpoint");
     expect(res.status).toBe(404);
   });
 });

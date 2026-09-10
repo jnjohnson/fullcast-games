@@ -1,96 +1,107 @@
-import { describe, it, expect, vi } from "vitest";
-import { addNewPlayer, updatePlayer } from "../server/transferWizard.js";
+import { describe, it, expect } from "vitest";
+import { hashValue, buildTransferChain } from "../server/transferWizard.js";
 
-// Returns a chainable mock: db.prepare(...).bind(...).run()
-function makeMockDb() {
-  const run = vi.fn().mockResolvedValue({ results: [] });
-  const stmt = { bind: vi.fn(() => ({ run })) };
-  const db = { prepare: vi.fn(() => stmt) };
-  return { db, stmt, run };
-}
-
-describe("updatePlayer", () => {
-  it("returns false when destination is already the last entry in Transfers", () => {
-    const { db } = makeMockDb();
-    const player = { PlayerId: 1, Transfers: '["Texas","Alabama"]' };
-    const result = updatePlayer(player, { destination: "Alabama" }, { games_db: db });
-    expect(result).toBe(false);
-    expect(db.prepare).not.toHaveBeenCalled();
+describe("hashValue", () => {
+  it("returns a 64-character hex string", async () => {
+    const hash = await hashValue({ team: "Alabama" });
+    expect(hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it("returns true and calls DB update when destination is new", () => {
-    const { db } = makeMockDb();
-    const player = { PlayerId: 1, Transfers: '["Texas","USC"]' };
-    const result = updatePlayer(player, { destination: "Georgia" }, { games_db: db });
-    expect(result).toBe(true);
-    expect(db.prepare).toHaveBeenCalledOnce();
+  it("produces the same hash for identical inputs", async () => {
+    const a = await hashValue([{ team: "Virginia" }, { season: 2025, team: "UNLV" }]);
+    const b = await hashValue([{ team: "Virginia" }, { season: 2025, team: "UNLV" }]);
+    expect(a).toBe(b);
   });
 
-  it("sets InP4 = true when destination is a P4 school", () => {
-    const { db, stmt } = makeMockDb();
-    const player = { PlayerId: 1, Transfers: '["New Mexico","UTSA"]' };
-    updatePlayer(player, { destination: "Alabama" }, { games_db: db });
-    expect(stmt.bind).toHaveBeenCalledWith(true, expect.any(String), 1);
+  it("produces different hashes for different inputs", async () => {
+    const a = await hashValue([{ team: "Alabama" }]);
+    const b = await hashValue([{ team: "Georgia" }]);
+    expect(a).not.toBe(b);
   });
 
-  it("sets InP4 = false when destination is a non-P4 school", () => {
-    const { db, stmt } = makeMockDb();
-    const player = { PlayerId: 1, Transfers: '["Texas","USC"]' };
-    updatePlayer(player, { destination: "UTSA" }, { games_db: db });
-    expect(stmt.bind).toHaveBeenCalledWith(false, expect.any(String), 1);
-  });
-
-  it("appends destination correctly to Transfers JSON", () => {
-    const { db, stmt } = makeMockDb();
-    const player = { PlayerId: 1, Transfers: '["Texas","USC"]' };
-    updatePlayer(player, { destination: "Georgia" }, { games_db: db });
-    expect(stmt.bind).toHaveBeenCalledWith(expect.anything(), '["Texas","USC","Georgia"]', 1);
+  it("is sensitive to key order differences in objects", async () => {
+    const a = await hashValue({ season: 2025, team: "UNLV" });
+    const b = await hashValue({ team: "UNLV", season: 2025 });
+    // JSON.stringify preserves insertion order, so these differ
+    expect(a).not.toBe(b);
   });
 });
 
-describe("addNewPlayer", () => {
-  it("calls INSERT with WasInP4 = true for a P4 origin", () => {
-    const { db, stmt } = makeMockDb();
-    addNewPlayer(
-      { firstName: "John", lastName: "Doe", position: "QB", origin: "Alabama", destination: "Georgia" },
-      { games_db: db }
-    );
-    expect(stmt.bind).toHaveBeenCalledWith("John", "Doe", "QB", true, true, '["Alabama","Georgia"]');
+// ─── buildTransferChain ───────────────────────────────────────────────────────
+
+function row(fromSchool, toSchool, season = 2024) {
+  return {
+    season,
+    fromTeam: fromSchool ? { school: fromSchool } : null,
+    toTeam:   toSchool   ? { school: toSchool }   : null,
+  };
+}
+
+describe("buildTransferChain", () => {
+  it("builds a 2-stop chain for a normal single transfer", () => {
+    const chain = buildTransferChain([row("Auburn", "Oregon", 2023)]);
+    expect(chain).toEqual([{ team: "Auburn" }, { season: 2023, team: "Oregon" }]);
   });
 
-  it("calls INSERT with WasInP4 = false for a non-P4 origin", () => {
-    const { db, stmt } = makeMockDb();
-    addNewPlayer(
-      { firstName: "John", lastName: "Doe", position: "QB", origin: "UTSA", destination: "Georgia" },
-      { games_db: db }
-    );
-    expect(stmt.bind).toHaveBeenCalledWith("John", "Doe", "QB", false, true, '["UTSA","Georgia"]');
+  it("builds a 3-stop chain for two consecutive transfers", () => {
+    const chain = buildTransferChain([
+      row("Auburn",  "Oregon", 2022),
+      row("Oregon",  "LSU",    2024),
+    ]);
+    expect(chain).toEqual([
+      { team: "Auburn" },
+      { season: 2022, team: "Oregon" },
+      { season: 2024, team: "LSU" },
+    ]);
   });
 
-  it("calls INSERT with InP4 = true for a P4 destination", () => {
-    const { db, stmt } = makeMockDb();
-    addNewPlayer(
-      { firstName: "Jane", lastName: "Smith", position: "RB", origin: "UTSA", destination: "Alabama" },
-      { games_db: db }
-    );
-    expect(stmt.bind).toHaveBeenCalledWith("Jane", "Smith", "RB", false, true, '["UTSA","Alabama"]');
+  it("case 1: skips destination when fromTeam == toTeam (not the only row)", () => {
+    const chain = buildTransferChain([
+      row("Alabama", "Alabama", 2023),
+      row("Alabama", "Georgia", 2024),
+    ]);
+    expect(chain).toEqual([{ team: "Alabama" }, { season: 2024, team: "Georgia" }]);
   });
 
-  it("calls INSERT with InP4 = false for a non-P4 destination", () => {
-    const { db, stmt } = makeMockDb();
-    addNewPlayer(
-      { firstName: "Jane", lastName: "Smith", position: "WR", origin: "Alabama", destination: "UTSA" },
-      { games_db: db }
-    );
-    expect(stmt.bind).toHaveBeenCalledWith("Jane", "Smith", "WR", true, false, '["Alabama","UTSA"]');
+  it("case 2: returns a length-1 array when fromTeam == toTeam and is the only row", () => {
+    const chain = buildTransferChain([row("Alabama", "Alabama", 2024)]);
+    expect(chain).toHaveLength(1);
+    expect(chain[0]).toEqual({ team: "Alabama" });
   });
 
-  it('formats Transfers JSON as ["origin","destination"]', () => {
-    const { db, stmt } = makeMockDb();
-    addNewPlayer(
-      { firstName: "Joe", lastName: "Bob", position: "TE", origin: "New Mexico", destination: "UTSA" },
-      { games_db: db }
-    );
-    expect(stmt.bind).toHaveBeenCalledWith("Joe", "Bob", "TE", false, false, '["New Mexico","UTSA"]');
+  it("case 3: skips a null-toTeam row when other rows exist", () => {
+    const chain = buildTransferChain([
+      row("UTSA",    null,      2023),
+      row("UTSA",    "Texas",   2024),
+    ]);
+    expect(chain).toEqual([{ team: "UTSA" }, { season: 2024, team: "Texas" }]);
+  });
+
+  it("case 4: returns a length-1 array when toTeam is null and is the only row", () => {
+    const chain = buildTransferChain([row("Alabama", null, 2024)]);
+    expect(chain).toHaveLength(1);
+    expect(chain[0]).toEqual({ team: "Alabama" });
+  });
+
+  it("case 5: inserts an intermediate stop when fromTeam[N] differs from toTeam[N-1]", () => {
+    const chain = buildTransferChain([
+      row("Clemson",        "South Carolina", 2023),
+      row("Florida",        "Tennessee",      2024),
+    ]);
+    expect(chain).toEqual([
+      { team: "Clemson" },
+      { season: 2023, team: "South Carolina" },
+      { season: 2024, team: "Florida" },
+      { season: 2024, team: "Tennessee" },
+    ]);
+  });
+
+  it("returns an empty array when fromTeam is null on the first row", () => {
+    const chain = buildTransferChain([row(null, "Alabama", 2024)]);
+    expect(chain).toHaveLength(0);
+  });
+
+  it("returns an empty array for an empty input", () => {
+    expect(buildTransferChain([])).toEqual([]);
   });
 });
