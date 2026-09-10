@@ -35,3 +35,12 @@ npm run dev
 ```sh
 npm run build
 ```
+
+## Notes / Things Learned
+### Cloudflare
+- Workers
+- Workers KV
+### GraphQL
+### Claude (Sonnet 4.6)
+- If you have a bad idea and prompt Claude, Claude will do what you ask. For example prompting Claude to create a hash function to generate keys for a KV namespace. [Claude created a hash function that used SHA-256 to generate the key.](https://github.com/jnjohnson/fullcast-games/commit/ba079d274757b74c0093ebb5621a9debe6a4faf0) If you ask Claude later if that's overkill, it'll tell you that yes, it is.
+- On the other hand Claude is super helpful for researching the right way to do something, especially if you don't know how to precisely describe the problem. For example I asked Claude to explain how to use Cloudflare Cache to store objects. Claude recommended that I use Cloudflare Workers KV instead, which was the service I actually needed.
