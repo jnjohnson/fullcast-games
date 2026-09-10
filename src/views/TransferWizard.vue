@@ -55,8 +55,11 @@
         });
         const body = await response.json();
         buttonState.value[i].waiting = false;
-        if (body.pid == pid) {
+        if (body.error) {
+            fetchQuestion(difficulty.value);
+        } else if (body.pid == pid) {
             buttonState.value[i].correct = true;
+            showNewQuestionButton.value = true;
         } else {
             buttonState.value.forEach(button => {
                 if (body.pid.includes(button.pid)) {
@@ -64,8 +67,8 @@
                 }
             });
             buttonState.value[i].incorrect = true;
+            showNewQuestionButton.value = true;
         }
-        showNewQuestionButton.value = true;
     }
 
     if (difficulty.value) {
@@ -91,7 +94,7 @@
                 </button>
                 <button @click="selectDifficulty('hard')">
                     <span class="diff-label">Hard</span>
-                    <span class="diff-desc">All positions currently at a P4 school</span>
+                    <span class="diff-desc">QB/RB/WR with any P4 history</span>
                 </button>
                 <button @click="selectDifficulty('sickos')">
                     <span class="diff-label">Sickos</span>
