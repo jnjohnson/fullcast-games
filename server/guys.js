@@ -1,37 +1,5 @@
 import { cfbdGql } from './cfbd.js';
 
-// Categories to show per position group
-const POSITION_CATEGORIES = {
-    QB: ['passing', 'rushing'],
-    RB: ['rushing', 'receiving'],
-    WR: ['receiving'],
-    TE: ['receiving'],
-    K:  ['kicking'],
-    P:  ['punting'],
-    OL: []
-};
-const DEFENSIVE_POSITIONS = new Set(['CB', 'DB', 'S', 'FS', 'SS', 'LB', 'ILB', 'OLB', 'DE', 'DT', 'DL', 'NT']);
-
-function relevantCategories(position) {
-    if (POSITION_CATEGORIES[position]) return POSITION_CATEGORIES[position];
-    if (DEFENSIVE_POSITIONS.has(position)) return ['defensive', 'interceptions', 'fumbles'];
-    return null; // null means all categories
-}
-
-// Stat columns to display per category
-const CATEGORY_COLUMNS = {
-    passing:       ['ATT', 'COMPLETIONS', 'PCT', 'YDS', 'TD', 'INT'],
-    rushing:       ['CAR', 'YDS', 'YPC', 'TD'],
-    receiving:     ['REC', 'YDS', 'AVG', 'TD', 'LONG'],
-    defensive:     ['TOT', 'SOLO', 'TFL', 'SACKS'],
-    interceptions: ['INT', 'YDS', 'TD'],
-    fumbles:       ['REC', 'FUM', 'LOST'],
-    kicking:       ['FGM', 'FGA', 'XPM', 'XPA', 'PTS'],
-    punting:       ['NO', 'YDS', 'YPP', 'LONG'],
-    kickReturns:   ['NO', 'YDS', 'TD', 'YPR'],
-    puntReturns:   ['NO', 'YDS', 'TD', 'YPR'],
-};
-
 // GraphQL fragment for athlete fields shared across queries.
 // Maps AthleteTeam entries to seasons using startYear as the season year.
 const ATHLETE_FIELDS = `
@@ -98,10 +66,8 @@ export async function getPlayerById(request, env) {
 
 // Fetches season stats for a player from the CFBD GraphQL API.
 // Requires a `playerId` query parameter (integer). Returns 400 if missing, 404 if not found.
-// Stats are filtered to the categories relevant for the player's position (e.g. QB gets passing +
-// rushing; defensive players get defensive/interceptions/fumbles; unknown positions get everything).
 // A single GraphQL call replaces the previous N parallel REST calls (one per season).
-// Response body: { playerId, position, categories, categoryColumns, seasons: [{ year, team, stats }] }
+// Response body: { playerId, categories, categoryColumns, seasons: [{ year, team, stats }] }
 export async function getPlayerStats(request, env) {
     const { searchParams } = new URL(request.url);
     const playerId = parseInt(searchParams.get('playerId'), 10);
@@ -110,52 +76,61 @@ export async function getPlayerStats(request, env) {
         return new Response(JSON.stringify({ error: 'Missing playerId' }), { status: 400 });
     }
 
-    const playerData = await cfbdGql(`
-        query($id: bigint!) {
-            athleteByPk(id: $id) {
-                position { abbreviation }
-                athleteTeams { startYear team { school } }
-            }
-        }
-    `, { id: playerId }, env);
-
-    if (!playerData.athleteByPk) {
-        return new Response(JSON.stringify({ error: 'Player not found' }), { status: 404 });
-    }
-
-    const position = playerData.athleteByPk.position?.abbreviation ?? '';
-    const categories = relevantCategories(position);
-
     const statsData = await cfbdGql(`
         query($athleteId: bigint!) {
-            gamePlayerStat(where: { athleteId: { _eq: $athleteId } }) {
-                year
-                team { school }
-                category
-                statType
+            gamePlayerStat(
+                where: { athleteId: { _eq: $athleteId } },
+                orderBy: {
+                    gameTeam: {game: {season: ASC}}
+                    playerStatType: {name: ASC}
+                }
+            ) {
+                gameTeam { game { season } }
+                playerStatType { name }
                 stat
             }
         }
     `, { athleteId: playerId }, env);
 
     // Pivot flat stat rows into { year+team → { category: { statType: value } } }
+    // TODO: Add team name string to each year
     const seasonMap = {};
+    let statNames = [];
     for (const row of statsData.gamePlayerStat) {
-        const key = `${row.year}|${row.team?.school ?? ''}`;
-        if (!seasonMap[key]) {
-            seasonMap[key] = { year: String(row.year), team: row.team?.school ?? '', stats: {} };
+        // const key = `${row.year}|${row.team?.school ?? ''}`;
+        const key = `${row.gameTeam.game.season}`;
+        const statName = row.playerStatType.name;
+        
+        if (statNames.indexOf(statName) === -1) {
+            statNames.push(statName);
         }
-        if (!seasonMap[key].stats[row.category]) seasonMap[key].stats[row.category] = {};
-        seasonMap[key].stats[row.category][row.statType] = row.stat;
+        if (!seasonMap[key]) {
+            // seasonMap[key] = { year: String(row.gameTeam.game.season), team: row.team?.school ?? '', stats: {} };
+            seasonMap[key] = { year: String(row.gameTeam.game.season), stats: {} };
+        }
+        if (!seasonMap[key].stats[statName]) {
+            if (statName == "C/ATT") {
+                seasonMap[key].stats[statName] = '0/0';
+            } else {
+                seasonMap[key].stats[statName] = 0;
+            }
+        }
+        if (statName == "C/ATT") {
+            const seasonSplit = seasonMap[key].stats[statName].split('/');
+            const gameSplit = row.stat.split('/');
+            seasonSplit[0] = Number(seasonSplit[0]) + Number(gameSplit[0]);
+            seasonSplit[1] = Number(seasonSplit[1]) + Number(gameSplit[1]);
+            seasonMap[key].stats[statName] = seasonSplit.join("/");
+        } else {
+            seasonMap[key].stats[statName] += Number(row.stat);
+        }
     }
 
     const seasons = Object.values(seasonMap).sort((a, b) => a.year - b.year);
 
     return Response.json({
         playerId,
-        position,
-        categories: categories ?? Object.keys(CATEGORY_COLUMNS),
-        categoryColumns: CATEGORY_COLUMNS,
+        statNames,
         seasons,
     });
 }
