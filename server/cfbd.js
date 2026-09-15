@@ -13,6 +13,8 @@ export async function cfbdGql(query, variables = {}, env) {
     });
     if (!res.ok) throw new Error(`CFBD GraphQL HTTP ${res.status}`);
     const json = await res.json();
-    if (json.errors) throw new Error(JSON.stringify(json.errors));
+    if (json.errors) {
+        throw new Error(JSON.stringify(json.errors));
+    }
     return json.data;
 }
