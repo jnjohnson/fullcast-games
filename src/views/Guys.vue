@@ -7,6 +7,7 @@
 
     const player = ref(null);
     const statsData = ref(null);
+    const statNames = ref(null);
     const loading = ref(false);
     const statsLoading = ref(false);
     const error = ref(null);
@@ -17,10 +18,15 @@
 
         loading.value = true;
         const res = await fetch(`/api/guys/player?playerId=${id}`);
-        if (res.ok) {
-            player.value = await res.json();
-            fetchStats(id);
+        if (!res.ok) {
+            error.value = 'Hmm, we can\'t find this player. Check back later!';
+            loading.value = false;
+            return;
         }
+        const data = await res.json();
+        player.value = data.player;
+        statsData.value = data.seasons;
+        statNames.value = data.statNames;
         loading.value = false;
     });
 
@@ -29,32 +35,27 @@
         error.value = null;
         player.value = null;
         statsData.value = null;
+        statNames.value = null;
 
         const res = await fetch('/api/guys/random-player');
         if (!res.ok) {
-            error.value = 'Ahh fuck, we can\'t remember a single guy right now. Check back later!';
+            error.value = 'We can\'t remember a single guy right now. Check back later!';
             loading.value = false;
             return;
         }
-        player.value = await res.json();
+        const data = await res.json();
+        player.value = data.player;
+        statsData.value = data.seasons;
+        statNames.value = data.statNames;
         loading.value = false;
 
         router.replace({ query: { playerId: player.value.id } });
-        fetchStats(player.value.id);
-    }
-
-    async function fetchStats(playerId) {
-        statsLoading.value = true;
-        const res = await fetch(`/api/guys/player-stats?playerId=${playerId}`);
-        if (res.ok) {
-            statsData.value = await res.json();
-        }
-        statsLoading.value = false;
     }
 
     function reset() {
         player.value = null;
         statsData.value = null;
+        statNames.value = null;
         error.value = null;
         router.replace({ query: {} });
     }
@@ -65,7 +66,7 @@
 
     // Returns stat value or '—' if missing
     function statVal(stats, category, col) {
-        return stats[category]?.[col] ?? '0';
+        return stats[category] ?? '0';
     }
 </script>
 
@@ -84,7 +85,7 @@
             <div class="player-card">
                 <h2>{{ player.firstName }} {{ player.lastName }}</h2>
                 <div class="meta">
-                    <span class="position">{{ player.position.abbreviation }}</span>
+                    <span class="position">{{ player.position?.abbreviation || 'N/A' }}</span>
                     <span class="schools">{{ uniqueSchools(player.athleteTeams) }}</span>
                 </div>
             </div>
@@ -92,40 +93,34 @@
             <div v-if="statsLoading" class="stats-loading">Loading stats...</div>
 
             <template v-else-if="statsData">
-                <div
-                    v-for="category in statsData.categories"
-                    :key="category"
-                    class="stat-section"
-                >
-                    <h3>{{ category }}</h3>
+                <div class="stat-section">
                     <table>
                         <thead>
                             <tr>
                                 <th>Year</th>
-                                <th>Team</th>
+                                <!-- <th>Team</th> -->
                                 <th
-                                    v-for="col in statsData.categoryColumns[category]"
-                                    :key="col"
-                                >{{ col }}</th>
+                                    v-for="name in statNames"
+                                    :key="name"
+                                >{{ name }}</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr
-                                v-for="season in statsData.seasons"
+                                v-for="season in statsData"
                                 :key="season.year + season.team"
                             >
                                 <td>{{ season.year }}</td>
-                                <td>{{ season.team }}</td>
+                                <!-- <td>{{ season.team }}</td> -->
                                 <td
-                                    v-for="col in statsData.categoryColumns[category]"
+                                    v-for="col in season.stats"
                                     :key="col"
-                                >{{ statVal(season.stats, category, col) }}</td>
+                                >{{ col }}</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
-
-                <p v-if="statsData.seasons.every(s => Object.keys(s.stats).length === 0)" class="no-stats">
+                <p v-if="statsData.every(s => Object.keys(s.stats).length === 0)" class="no-stats">
                     No stats found for this player.
                 </p>
                 <div class="intro">
@@ -245,6 +240,7 @@
     .stat-section {
         width: 100%;
         max-width: 700px;
+        overflow: scroll;
 
         &:nth-of-type(even) h3 {
             color: base.$ptku-pink;
@@ -264,7 +260,7 @@
             width: 100%;
 
             th, td {
-                border-bottom: 1px solid rgba(base.$color-text, 0.1);
+                border-bottom: 1px solid base.$ptku-pink;
                 padding: 8px 12px;
                 text-align: right;
 
@@ -281,9 +277,13 @@
                 opacity: 0.5;
                 text-transform: uppercase;
             }
-
-            tbody tr:hover {
-                background: rgba(base.$ptku-blue, 0.05);
+            tbody tr {
+                &:nth-of-type(even) {
+                    color: base.$ptku-pink;
+                }
+                &:nth-of-type(odd) {
+                    color: base.$ptku-blue;
+                }
             }
         }
     }
