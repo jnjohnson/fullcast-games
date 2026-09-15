@@ -18,6 +18,9 @@ const ATHLETE_FIELDS = `
 // Response body: { id, firstName, lastName, position, seasons } where seasons is
 // an array of { year, team } objects derived from the athlete's team history.
 export async function getRandomPlayer(env) {
+    let statNames = [];
+    let seasons = [];
+    let player = {};
     const countData = await cfbdGql(
         `query { athleteAggregate { aggregate { count } } }`,
         {},
@@ -29,27 +32,42 @@ export async function getRandomPlayer(env) {
         return new Response(JSON.stringify({ error: 'No players found' }), { status: 404 });
     }
 
-    const offset = Math.floor(Math.random() * cnt);
-    const data = await cfbdGql(`
-        query($offset: Int!) {
-            athlete(limit: 1, offset: $offset) { ${ATHLETE_FIELDS} }
-        }
-    `, { offset }, env);
+    while (seasons.length == 0) {
+        const offset = Math.floor(Math.random() * cnt);
+        const data = await cfbdGql(`
+            query($offset: Int!) {
+                athlete(limit: 1, offset: $offset) { ${ATHLETE_FIELDS} }
+            }
+        `, { offset }, env);
+    
+        player = data.athlete[0];
 
-    const player = data.athlete[0];
-    if (!player) {
-        return new Response(JSON.stringify({ error: 'No player found' }), { status: 404 });
+        if (!player) {
+            continue;
+        }
+
+        [statNames, seasons] = await getPlayerStats(player.id, env);
     }
 
-    return Response.json(player);
+    return Response.json({
+        player,
+        statNames,
+        seasons
+    });
 }
 
 // Fetches a single player by ID from the CFBD GraphQL API.
 // Requires a `playerId` query parameter (integer). Returns 400 if missing, 404 if not found.
 // Response body: { id, firstName, lastName, position, seasons } — same shape as getRandomPlayer.
 export async function getPlayerById(request, env) {
+    let statNames = [];
+    let seasons = [];
+    let player = {};
     const playerId = parseInt(new URL(request.url).searchParams.get('playerId'), 10);
-    if (!playerId) return new Response(JSON.stringify({ error: 'Missing playerId' }), { status: 400 });
+    
+    if (!playerId) {
+        return new Response(JSON.stringify({ error: 'Missing playerId' }), { status: 400 });
+    }
 
     const data = await cfbdGql(`
         query($id: bigint!) {
@@ -61,37 +79,45 @@ export async function getPlayerById(request, env) {
         return new Response(JSON.stringify({ error: 'Player not found' }), { status: 404 });
     }
 
-    return Response.json(data.athleteByPk);
+    player = data.athleteByPk;
+    [statNames, seasons] = await getPlayerStats(playerId, env);
+
+    return Response.json({
+        player,
+        statNames,
+        seasons
+    });
 }
 
 // Fetches season stats for a player from the CFBD GraphQL API.
 // Requires a `playerId` query parameter (integer). Returns 400 if missing, 404 if not found.
 // A single GraphQL call replaces the previous N parallel REST calls (one per season).
 // Response body: { playerId, categories, categoryColumns, seasons: [{ year, team, stats }] }
-export async function getPlayerStats(request, env) {
-    const { searchParams } = new URL(request.url);
-    const playerId = parseInt(searchParams.get('playerId'), 10);
-
+export async function getPlayerStats(playerId, env) {
+    let statsData = {};
     if (!playerId) {
-        return new Response(JSON.stringify({ error: 'Missing playerId' }), { status: 400 });
+        return [];
     }
-
-    const statsData = await cfbdGql(`
-        query($athleteId: bigint!) {
-            gamePlayerStat(
-                where: { athleteId: { _eq: $athleteId } },
-                orderBy: {
-                    gameTeam: {game: {season: ASC}}
-                    playerStatType: {name: ASC}
+    try {
+        statsData = await cfbdGql(`
+            query($athleteId: bigint!) {
+                gamePlayerStat(
+                    where: { athleteId: { _eq: $athleteId } },
+                    orderBy: {
+                        gameTeam: {game: {season: ASC}}
+                        playerStatType: {name: ASC}
+                    }
+                ) {
+                    gameTeam { game { season } }
+                    playerStatType { name }
+                    stat
                 }
-            ) {
-                gameTeam { game { season } }
-                playerStatType { name }
-                stat
             }
-        }
-    `, { athleteId: playerId }, env);
-
+        `, { athleteId: playerId }, env);
+    } catch (error) {
+        return new Response(JSON.stringify({ error: error }), { status: 404 });
+    }
+    
     // Pivot flat stat rows into { year+team → { category: { statType: value } } }
     // TODO: Add team name string to each year
     const seasonMap = {};
@@ -125,12 +151,7 @@ export async function getPlayerStats(request, env) {
             seasonMap[key].stats[statName] += Number(row.stat);
         }
     }
-
     const seasons = Object.values(seasonMap).sort((a, b) => a.year - b.year);
 
-    return Response.json({
-        playerId,
-        statNames,
-        seasons,
-    });
+    return [statNames, seasons];
 }
