@@ -18,9 +18,9 @@ const ATHLETE_FIELDS = `
 // Response body: { id, firstName, lastName, position, seasons } where seasons is
 // an array of { year, team } objects derived from the athlete's team history.
 export async function getRandomPlayer(env) {
-    let statNames = [];
-    let seasons = [];
+    let stats = {};
     let player = {};
+
     const countData = await cfbdGql(
         `query { athleteAggregate { aggregate { count } } }`,
         {},
@@ -32,27 +32,23 @@ export async function getRandomPlayer(env) {
         return new Response(JSON.stringify({ error: 'No players found' }), { status: 404 });
     }
 
-    while (seasons.length == 0) {
+    while (Object.keys(stats).length === 0) {
         const offset = Math.floor(Math.random() * cnt);
         const data = await cfbdGql(`
             query($offset: Int!) {
                 athlete(limit: 1, offset: $offset) { ${ATHLETE_FIELDS} }
             }
         `, { offset }, env);
-    
         player = data.athlete[0];
 
         if (!player) {
             continue;
         }
-
-        [statNames, seasons] = await getPlayerStats(player.id, env);
+        stats = await getPlayerStats(player.id, env);
     }
-
     return Response.json({
         player,
-        statNames,
-        seasons
+        stats
     });
 }
 
@@ -60,8 +56,7 @@ export async function getRandomPlayer(env) {
 // Requires a `playerId` query parameter (integer). Returns 400 if missing, 404 if not found.
 // Response body: { id, firstName, lastName, position, seasons } — same shape as getRandomPlayer.
 export async function getPlayerById(request, env) {
-    let statNames = [];
-    let seasons = [];
+    let stats = {};
     let player = {};
     const playerId = parseInt(new URL(request.url).searchParams.get('playerId'), 10);
     
@@ -80,12 +75,11 @@ export async function getPlayerById(request, env) {
     }
 
     player = data.athleteByPk;
-    [statNames, seasons] = await getPlayerStats(playerId, env);
+    stats = await getPlayerStats(playerId, env);
 
     return Response.json({
         player,
-        statNames,
-        seasons
+        stats
     });
 }
 
@@ -109,6 +103,7 @@ export async function getPlayerStats(playerId, env) {
                     }
                 ) {
                     gameTeam { game { season } }
+                    playerStatCategory { name }
                     playerStatType { name }
                     stat
                 }
@@ -118,40 +113,44 @@ export async function getPlayerStats(playerId, env) {
         return new Response(JSON.stringify({ error: error }), { status: 404 });
     }
     
-    // Pivot flat stat rows into { year+team → { category: { statType: value } } }
     // TODO: Add team name string to each year
-    const seasonMap = {};
-    let statNames = [];
+    const statMap = {};
     for (const row of statsData.gamePlayerStat) {
-        // const key = `${row.year}|${row.team?.school ?? ''}`;
-        const key = `${row.gameTeam.game.season}`;
+        const key = row.playerStatCategory.name;
         const statName = row.playerStatType.name;
-        
-        if (statNames.indexOf(statName) === -1) {
-            statNames.push(statName);
+        const season = row.gameTeam.game.season;
+        let seasonIdx = -1;
+        let seasonObj = {};
+
+        if (!statMap[key]) {
+            // Seasons - Array of {season: String, stats: {statName: statValue}}
+            statMap[key] = {statNames: [], seasons: []};
         }
-        if (!seasonMap[key]) {
-            // seasonMap[key] = { year: String(row.gameTeam.game.season), team: row.team?.school ?? '', stats: {} };
-            seasonMap[key] = { year: String(row.gameTeam.game.season), stats: {} };
+        if (statMap[key].statNames.indexOf(statName) === -1) {
+            statMap[key].statNames.push(statName);
         }
-        if (!seasonMap[key].stats[statName]) {
-            if (statName == "C/ATT") {
-                seasonMap[key].stats[statName] = '0/0';
-            } else {
-                seasonMap[key].stats[statName] = 0;
-            }
+
+        seasonIdx = statMap[key].seasons.findIndex(o => o.season === season);
+        if (seasonIdx === -1) {
+            seasonIdx = statMap[key].seasons.length;
+            seasonObj = {season: season, stats: {}};
+        } else {
+            seasonObj = statMap[key].seasons[seasonIdx];
         }
-        if (statName == "C/ATT") {
-            const seasonSplit = seasonMap[key].stats[statName].split('/');
+        if (!(statName in seasonObj.stats)) {
+            seasonObj.stats[statName] = statName === "C/ATT" ? '0/0' : 0;
+        }
+        if (statName === "C/ATT") {
+            const seasonSplit = seasonObj.stats[statName].split('/');
             const gameSplit = row.stat.split('/');
             seasonSplit[0] = Number(seasonSplit[0]) + Number(gameSplit[0]);
             seasonSplit[1] = Number(seasonSplit[1]) + Number(gameSplit[1]);
-            seasonMap[key].stats[statName] = seasonSplit.join("/");
+            seasonObj.stats[statName] = seasonSplit.join("/");
         } else {
-            seasonMap[key].stats[statName] += Number(row.stat);
+            seasonObj.stats[statName] += Number(row.stat);
         }
+        statMap[key].seasons[seasonIdx] = seasonObj;
     }
-    const seasons = Object.values(seasonMap).sort((a, b) => a.year - b.year);
-
-    return [statNames, seasons];
+    // const seasons = Object.values(statMap.seasons).sort((a, b) => a.seasons - b.seasons);
+    return statMap;
 }
