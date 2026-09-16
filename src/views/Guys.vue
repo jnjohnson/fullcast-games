@@ -7,7 +7,6 @@
 
     const player = ref(null);
     const statsData = ref(null);
-    const statNames = ref(null);
     const loading = ref(false);
     const statsLoading = ref(false);
     const error = ref(null);
@@ -25,8 +24,7 @@
         }
         const data = await res.json();
         player.value = data.player;
-        statsData.value = data.seasons;
-        statNames.value = data.statNames;
+        statsData.value = data.stats;
         loading.value = false;
     });
 
@@ -35,7 +33,6 @@
         error.value = null;
         player.value = null;
         statsData.value = null;
-        statNames.value = null;
 
         const res = await fetch('/api/guys/random-player');
         if (!res.ok) {
@@ -45,8 +42,7 @@
         }
         const data = await res.json();
         player.value = data.player;
-        statsData.value = data.seasons;
-        statNames.value = data.statNames;
+        statsData.value = data.stats;
         loading.value = false;
 
         router.replace({ query: { playerId: player.value.id } });
@@ -55,7 +51,6 @@
     function reset() {
         player.value = null;
         statsData.value = null;
-        statNames.value = null;
         error.value = null;
         router.replace({ query: {} });
     }
@@ -94,33 +89,37 @@
 
             <template v-else-if="statsData">
                 <div class="stat-section">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Year</th>
-                                <!-- <th>Team</th> -->
-                                <th
-                                    v-for="name in statNames"
-                                    :key="name"
-                                >{{ name }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr
-                                v-for="season in statsData"
-                                :key="season.year + season.team"
-                            >
-                                <td>{{ season.year }}</td>
-                                <!-- <td>{{ season.team }}</td> -->
-                                <td
-                                    v-for="col in season.stats"
-                                    :key="col"
-                                >{{ col }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="stat-type"
+                        v-for="(stats, key) in statsData"
+                    >
+                        <h3>{{ key }}</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Year</th>
+                                    <!-- <th>Team</th> -->
+                                    <th
+                                        v-for="name in stats.statNames"
+                                        :key="name"
+                                    >{{ name }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr
+                                    v-for="season in stats.seasons"
+                                >
+                                    <td>{{ season.season }}</td>
+                                    <!-- <td>{{ season.team }}</td> -->
+                                    <td
+                                        v-for="col in season.stats"
+                                        :key="col"
+                                    >{{ col }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <p v-if="statsData.every(s => Object.keys(s.stats).length === 0)" class="no-stats">
+                <p v-if="Object.keys(statsData).length === 0" class="no-stats">
                     No stats found for this player.
                 </p>
                 <div class="intro">
@@ -238,51 +237,56 @@
     }
 
     .stat-section {
-        width: 100%;
+        display: flex;
+        flex-flow: column nowrap;
+        gap: 30px;
         max-width: 700px;
         overflow: scroll;
+        width: 100%;
 
-        &:nth-of-type(even) h3 {
-            color: base.$ptku-pink;
-        }
-        h3 {
-            color: base.$ptku-blue;
-            font-size: 0.85rem;
-            font-weight: bold;
-            letter-spacing: 0.08em;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-        }
-
-        table {
-            border-collapse: collapse;
-            font-size: 0.9rem;
-            width: 100%;
-
-            th, td {
-                border-bottom: 1px solid base.$ptku-pink;
-                padding: 8px 12px;
-                text-align: right;
-
-                &:first-child, &:nth-child(2) {
-                    text-align: left;
-                }
+        .stat-type {
+            &:nth-of-type(even) h3 {
+                color: base.$ptku-pink;
             }
-
-            th {
-                color: base.$color-text;
-                font-size: 0.75rem;
+            h3 {
+                color: base.$ptku-blue;
+                font-size: 0.85rem;
                 font-weight: bold;
-                letter-spacing: 0.05em;
-                opacity: 0.5;
+                letter-spacing: 0.08em;
                 text-transform: uppercase;
             }
-            tbody tr {
-                &:nth-of-type(even) {
-                    color: base.$ptku-pink;
+            table {
+                border-collapse: collapse;
+                font-size: 0.9rem;
+                width: 100%;
+
+                th, td {
+                    padding: 8px 12px;
+                    text-align: right;
+
+                    &:first-child, &:nth-child(2) {
+                        text-align: left;
+                    }
                 }
-                &:nth-of-type(odd) {
-                    color: base.$ptku-blue;
+
+                th {
+                    border-bottom: 1px solid base.$ptku-pink;
+                    color: base.$color-text;
+                    font-size: 0.75rem;
+                    font-weight: bold;
+                    letter-spacing: 0.05em;
+                    opacity: 0.5;
+                    text-transform: uppercase;
+                }
+                tbody tr {
+                    &:nth-of-type(even) {
+                        color: base.$ptku-pink;
+                        border-bottom: 1px solid base.$ptku-pink;
+                    }
+                    &:nth-of-type(odd) {
+                        color: base.$ptku-blue;
+                        border-bottom: 1px solid base.$ptku-blue;
+                    }
                 }
             }
         }
