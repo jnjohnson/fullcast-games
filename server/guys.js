@@ -1,4 +1,5 @@
 import { cfbdGql } from './cfbd.js';
+import { getPlayerVideos } from './youtube.js';
 
 // GraphQL fragment for athlete fields shared across queries.
 // Maps AthleteTeam entries to seasons using startYear as the season year.
@@ -234,4 +235,20 @@ export async function getPlayerStats(playerId, env) {
         }
     }
     return statMap;
+}
+
+export async function getPlayerHighlights(request, env) {
+    const { searchParams } = new URL(request.url);
+    const firstName = searchParams.get('firstName');
+    const lastName  = searchParams.get('lastName');
+    const position  = searchParams.get('position') ?? '';
+    if (!firstName || !lastName) {
+        return new Response(JSON.stringify({ error: 'Missing name params' }), { status: 400 });
+    }
+    try {
+        const videos = await getPlayerVideos(firstName, lastName, position, env);
+        return Response.json({ videos });
+    } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+    }
 }
