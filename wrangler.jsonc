@@ -14,20 +14,9 @@
 	"observability": {
 		"enabled": true
 	},
-	"triggers": {
-		"crons": [
-			"0 0 * * sun",
-			"0 0 1 8 *"
-		]
-	},
-	"d1_databases": [
-		{
-			"binding": "games_db",
-			"database_name": "games-db",
-			"database_id": "788626e9-3925-4e4f-ab8e-1bafa17d4e84",
-			"remote": false
-		}
-	],
+	"kv_namespaces": [
+		{ "binding": "CFBD_CACHE", "id": "ab95b84ced604f2cbb7a84824b9e1397" }
+	]
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
