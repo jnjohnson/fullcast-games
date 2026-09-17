@@ -136,7 +136,6 @@ export async function getPlayerStats(playerId, env) {
         return new Response(JSON.stringify({ error: error }), { status: 404 });
     }
     
-    // TODO: Add team name string to each year
     const statMap = {};
     for (const row of statsData.gamePlayerStat) {
         const statName = row.playerStatType.name;
