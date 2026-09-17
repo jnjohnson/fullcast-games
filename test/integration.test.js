@@ -1,5 +1,6 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import worker from "../server/index.js";
 import { getPlayers, checkAnswer } from "../server/transferWizard.js";
 import * as cfbd from "../server/cfbd.js";
 
@@ -236,7 +237,10 @@ describe("checkAnswer", () => {
 
 describe("Routing", () => {
   it("unknown API path returns 404", async () => {
-    const res = await fetch("http://localhost:5174/api/unknown-endpoint");
+    const res = await worker.fetch(
+      new Request("http://fake/api/unknown-endpoint"),
+      mockEnv()
+    );
     expect(res.status).toBe(404);
   });
 });
