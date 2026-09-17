@@ -1,5 +1,5 @@
 import { getPlayers, checkAnswer } from './transferWizard.js';
-import { getRandomPlayer, getPlayerById, getPlayerStats } from './guys.js';
+import { getRandomPlayer, getPlayerById, getPlayerStats, getPlayerHighlights } from './guys.js';
 
 export default {
 	async fetch(request, env) {
@@ -16,6 +16,8 @@ export default {
             return getPlayerById(request, env);
         } else if (pathname === "/api/guys/player-stats") {
             return getPlayerStats(request, env);
+        } else if (pathname === "/api/guys/videos") {
+            return getPlayerHighlights(request, env);
         } else {
             return new Response(null, { status: 404 });
         }
