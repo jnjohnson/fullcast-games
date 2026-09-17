@@ -7,7 +7,7 @@ import { RouterView } from 'vue-router'
         <RouterLink to="/"><img alt="Shutdown Fullcast moon snake logo" class="logo" src="@/assets/fullcast-logo.jpg" width="125" height="125" /></RouterLink>
         <div>
             <h1>Fullcast Games</h1>
-            <p>The only games based on bits from the internet's only college football podcast.</p>
+            <p>The only website featuring bits from the internet's only college football podcast</p>
         </div>
     </header>
     <main>
