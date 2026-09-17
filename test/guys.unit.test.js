@@ -1,142 +1,52 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { syncPlayers, getRandomPlayer, getPlayerStats } from "../server/guys.js";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { getRandomPlayer, getPlayerById, getPlayerStats } from "../server/guys.js";
+import * as cfbd from "../server/cfbd.js";
 
-// Returns a chainable mock DB whose sequential run() calls return the given values.
-// Supports both prepare().run() and prepare().bind().run() call patterns.
-function makeDb(...runResults) {
-    let callIndex = 0;
-    const run = vi.fn(() =>
-        Promise.resolve(runResults[callIndex++] ?? { results: [] })
-    );
-    const bind = vi.fn(() => ({ run }));
-    const stmt = { bind, run };
-    const db = { prepare: vi.fn(() => stmt) };
-    return { db, stmt, bind, run };
-}
+vi.mock("../server/cfbd.js");
 
 function makeRequest(path) {
     return new Request(`http://fake-host${path}`);
 }
 
-// ─── syncPlayers ────────────────────────────────────────────────────────────
+// Athlete object as returned by the GraphQL API
+function makeAthlete(id, firstName, lastName, posAbbr, teams = []) {
+    return {
+        id,
+        firstName,
+        lastName,
+        position: { abbreviation: posAbbr },
+        athleteTeams: teams.map(({ year, school }) => ({
+            startYear: year,
+            team: { school },
+        })),
+    };
+}
 
-describe("syncPlayers", () => {
-    beforeEach(() => {
-        vi.stubGlobal("fetch", vi.fn());
-    });
-    afterEach(() => {
-        vi.unstubAllGlobals();
-    });
+// Minimal env — cfbdGql is mocked so CFBD_TOKEN is never used
+const FAKE_ENV = { CFBD_TOKEN: "Bearer test" };
 
-    it("logs an error and returns early when the roster fetch fails", async () => {
-        fetch.mockResolvedValue({ ok: false, status: 500 });
-        const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-        const { db } = makeDb();
-        await syncPlayers({ games_db: db });
-        expect(db.prepare).not.toHaveBeenCalled();
-        errorSpy.mockRestore();
-    });
-
-    it("skips players missing id or team", async () => {
-        const players = [
-            { first_name: "No", last_name: "Id", position: "QB", team: "Alabama" },
-            { id: 99, first_name: "No", last_name: "Team", position: "QB" },
-        ];
-        fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(players) });
-        const { db } = makeDb();
-        await syncPlayers({ games_db: db });
-        expect(db.prepare).not.toHaveBeenCalled();
-    });
-
-    it("inserts a new player when they are not in the DB", async () => {
-        const players = [{ id: 1, first_name: "John", last_name: "Doe", position: "QB", team: "Alabama" }];
-        fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(players) });
-        // First run() → SELECT returns empty; second run() → INSERT
-        const { db, stmt, bind } = makeDb({ results: [] }, { results: [] });
-
-        await syncPlayers({ games_db: db });
-
-        expect(db.prepare).toHaveBeenCalledTimes(2);
-        // The INSERT bind args should include the player fields
-        const insertArgs = bind.mock.calls[1];
-        expect(insertArgs[0]).toBe(1);          // PlayerId
-        expect(insertArgs[1]).toBe("John");     // FirstName
-        expect(insertArgs[2]).toBe("Doe");      // LastName
-        expect(insertArgs[3]).toBe("QB");       // Position
-    });
-
-    it("skips updating when player already has that season+team", async () => {
-        const year = "2004";
-        const players = [{ id: 1, first_name: "Jane", last_name: "Smith", position: "RB", team: "Georgia" }];
-        fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(players) });
-
-        const existingSeasons = JSON.stringify([{ year, team: "Georgia" }]);
-        const { db } = makeDb({ results: [{ PlayerId: 1, Seasons: existingSeasons }] });
-
-        await syncPlayers({ games_db: db });
-
-        // Only one DB call (the SELECT); no UPDATE issued
-        expect(db.prepare).toHaveBeenCalledTimes(1);
-    });
-
-    it("updates Seasons when player exists but the season is new", async () => {
-        const players = [{ id: 1, first_name: "Jane", last_name: "Smith", position: "RB", team: "LSU" }];
-        fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(players) });
-
-        const existingSeasons = JSON.stringify([{ year: "2004", team: "Georgia" }]);
-        const { db, stmt, bind } = makeDb(
-            { results: [{ PlayerId: 1, Seasons: existingSeasons }] }, // SELECT
-            { results: [] }                                            // UPDATE
-        );
-
-        await syncPlayers({ games_db: db });
-
-        expect(db.prepare).toHaveBeenCalledTimes(2);
-        // UPDATE bind: first arg is new Seasons JSON, second is PlayerId
-        const updatedSeasons = JSON.parse(bind.mock.calls[1][0]);
-        expect(updatedSeasons).toHaveLength(2);
-        expect(updatedSeasons[1]).toEqual({ year: "2004", team: "LSU" });
-    });
-
-    it("handles players with missing optional fields gracefully", async () => {
-        const players = [{ id: 5, team: "Ohio State" }]; // no name/position
-        fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(players) });
-        const { db, bind } = makeDb({ results: [] }, { results: [] });
-
-        await syncPlayers({ games_db: db });
-
-        const insertArgs = bind.mock.calls[1];
-        expect(insertArgs[1]).toBe("");  // FirstName defaults to ''
-        expect(insertArgs[2]).toBe("");  // LastName defaults to ''
-        expect(insertArgs[3]).toBe("");  // Position defaults to ''
-    });
+beforeEach(() => {
+    vi.clearAllMocks();
 });
 
 // ─── getRandomPlayer ─────────────────────────────────────────────────────────
 
 describe("getRandomPlayer", () => {
-    it("returns 404 when the Players table is empty", async () => {
-        const { db } = makeDb({ results: [{ cnt: 0 }] });
-        const res = await getRandomPlayer({ games_db: db });
+    it("returns 404 when athlete count is 0", async () => {
+        cfbd.cfbdGql.mockResolvedValueOnce({ athleteAggregate: { aggregate: { count: 0 } } });
+
+        const res = await getRandomPlayer(FAKE_ENV);
         expect(res.status).toBe(404);
         const body = await res.json();
         expect(body.error).toBeDefined();
     });
 
-    it("returns 200 with the player shape when the table has rows", async () => {
-        const fakePlayer = {
-            PlayerId: 42,
-            FirstName: "Bo",
-            LastName: "Nix",
-            Position: "QB",
-            Seasons: JSON.stringify([{ year: "2023", team: "Oregon" }]),
-        };
-        const { db } = makeDb(
-            { results: [{ cnt: 10 }] },          // COUNT query
-            { results: [fakePlayer] }             // LIMIT/OFFSET query
-        );
+    it("returns 200 with the correct player shape", async () => {
+        cfbd.cfbdGql
+            .mockResolvedValueOnce({ athleteAggregate: { aggregate: { count: 10 } } })
+            .mockResolvedValueOnce({ athlete: [makeAthlete(42, "Bo", "Nix", "QB", [{ year: 2023, school: "Oregon" }])] });
 
-        const res = await getRandomPlayer({ games_db: db });
+        const res = await getRandomPlayer(FAKE_ENV);
         expect(res.status).toBe(200);
 
         const body = await res.json();
@@ -147,163 +57,191 @@ describe("getRandomPlayer", () => {
         expect(body.seasons).toEqual([{ year: "2023", team: "Oregon" }]);
     });
 
-    it("selects an offset within range of the player count", async () => {
-        const fakePlayer = {
-            PlayerId: 1,
-            FirstName: "A",
-            LastName: "B",
-            Position: "WR",
-            Seasons: "[]",
-        };
-        const mathSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
-        const { db, bind } = makeDb(
-            { results: [{ cnt: 100 }] },
-            { results: [fakePlayer] }
-        );
+    it("selects an offset within the athlete count", async () => {
+        vi.spyOn(Math, "random").mockReturnValue(0.5);
 
-        await getRandomPlayer({ games_db: db });
-        // COUNT query uses .prepare().run() directly (no .bind()); only the LIMIT/OFFSET query calls .bind()
-        // offset = floor(0.5 * 100) = 50
-        expect(bind.mock.calls[0][0]).toBe(50);
-        mathSpy.mockRestore();
+        cfbd.cfbdGql
+            .mockResolvedValueOnce({ athleteAggregate: { aggregate: { count: 100 } } })
+            .mockResolvedValueOnce({ athlete: [makeAthlete(1, "A", "B", "WR")] });
+
+        await getRandomPlayer(FAKE_ENV);
+
+        // Second cfbdGql call should pass offset = floor(0.5 * 100) = 50
+        const secondCallVars = cfbd.cfbdGql.mock.calls[1][1];
+        expect(secondCallVars.offset).toBe(50);
+    });
+
+    it("returns 404 when the athlete query returns empty", async () => {
+        cfbd.cfbdGql
+            .mockResolvedValueOnce({ athleteAggregate: { aggregate: { count: 5 } } })
+            .mockResolvedValueOnce({ athlete: [] });
+
+        const res = await getRandomPlayer(FAKE_ENV);
+        expect(res.status).toBe(404);
+    });
+});
+
+// ─── getPlayerById ───────────────────────────────────────────────────────────
+
+describe("getPlayerById", () => {
+    it("returns 400 when playerId is missing", async () => {
+        const res = await getPlayerById(makeRequest("/api/guys/player"), FAKE_ENV);
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(body.error).toBeDefined();
+    });
+
+    it("returns 400 when playerId is non-numeric", async () => {
+        const res = await getPlayerById(makeRequest("/api/guys/player?playerId=abc"), FAKE_ENV);
+        expect(res.status).toBe(400);
+    });
+
+    it("returns 404 when athlete is not found", async () => {
+        cfbd.cfbdGql.mockResolvedValueOnce({ athleteByPk: null });
+
+        const res = await getPlayerById(makeRequest("/api/guys/player?playerId=999"), FAKE_ENV);
+        expect(res.status).toBe(404);
+    });
+
+    it("returns 200 with the correct player shape", async () => {
+        cfbd.cfbdGql.mockResolvedValueOnce({
+            athleteByPk: makeAthlete(42, "Bo", "Nix", "QB", [{ year: 2023, school: "Oregon" }]),
+        });
+
+        const res = await getPlayerById(makeRequest("/api/guys/player?playerId=42"), FAKE_ENV);
+        expect(res.status).toBe(200);
+
+        const body = await res.json();
+        expect(body.id).toBe(42);
+        expect(body.firstName).toBe("Bo");
+        expect(body.position).toBe("QB");
+        expect(body.seasons).toEqual([{ year: "2023", team: "Oregon" }]);
     });
 });
 
 // ─── getPlayerStats ───────────────────────────────────────────────────────────
 
 describe("getPlayerStats", () => {
-    beforeEach(() => {
-        vi.stubGlobal("fetch", vi.fn());
-    });
-    afterEach(() => {
-        vi.unstubAllGlobals();
-    });
-
     it("returns 400 when playerId is missing", async () => {
-        const { db } = makeDb();
-        const res = await getPlayerStats(makeRequest("/api/guys/player-stats"), { games_db: db });
+        const res = await getPlayerStats(makeRequest("/api/guys/player-stats"), FAKE_ENV);
         expect(res.status).toBe(400);
         const body = await res.json();
         expect(body.error).toBeDefined();
     });
 
-    it("returns 400 when playerId is not a valid number", async () => {
-        const { db } = makeDb();
-        const res = await getPlayerStats(
-            makeRequest("/api/guys/player-stats?playerId=abc"),
-            { games_db: db }
-        );
+    it("returns 400 when playerId is non-numeric", async () => {
+        const res = await getPlayerStats(makeRequest("/api/guys/player-stats?playerId=abc"), FAKE_ENV);
         expect(res.status).toBe(400);
     });
 
-    it("returns 404 when the player is not found in the DB", async () => {
-        const { db } = makeDb({ results: [] });
-        const res = await getPlayerStats(
-            makeRequest("/api/guys/player-stats?playerId=999"),
-            { games_db: db }
-        );
+    it("returns 404 when the athlete is not found", async () => {
+        cfbd.cfbdGql.mockResolvedValueOnce({ athleteByPk: null });
+
+        const res = await getPlayerStats(makeRequest("/api/guys/player-stats?playerId=999"), FAKE_ENV);
         expect(res.status).toBe(404);
     });
 
-    it("returns 200 with QB stats filtered to passing and rushing categories", async () => {
-        const seasons = JSON.stringify([{ year: "2023", team: "Oregon" }]);
-        const { db } = makeDb({ results: [{ Position: "QB", Seasons: seasons }] });
+    it("returns 200 with passing and rushing categories for QB", async () => {
+        cfbd.cfbdGql
+            .mockResolvedValueOnce({
+                athleteByPk: {
+                    position: { abbreviation: "QB" },
+                    athleteTeams: [{ startYear: 2023, team: { school: "Oregon" } }],
+                },
+            })
+            .mockResolvedValueOnce({
+                gamePlayerStat: [
+                    { year: 2023, team: { school: "Oregon" }, category: "passing", statType: "YDS", stat: 3500 },
+                    { year: 2023, team: { school: "Oregon" }, category: "rushing", statType: "YDS", stat: 400 },
+                    { year: 2023, team: { school: "Oregon" }, category: "receiving", statType: "REC", stat: 5 },
+                ],
+            });
 
-        const statRows = [
-            { player_id: 42, category: "passing", stat_type: "YDS", stat: 3500 },
-            { player_id: 42, category: "rushing", stat_type: "YDS", stat: 400 },
-            { player_id: 42, category: "receiving", stat_type: "REC", stat: 5 }, // should be filtered out
-            { player_id: 99, category: "passing", stat_type: "YDS", stat: 1000 }, // different player
-        ];
-        fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve(statRows) });
-
-        const res = await getPlayerStats(
-            makeRequest("/api/guys/player-stats?playerId=42"),
-            { games_db: db }
-        );
+        const res = await getPlayerStats(makeRequest("/api/guys/player-stats?playerId=42"), FAKE_ENV);
         expect(res.status).toBe(200);
-        const body = await res.json();
 
+        const body = await res.json();
         expect(body.playerId).toBe(42);
         expect(body.position).toBe("QB");
         expect(body.categories).toEqual(["passing", "rushing"]);
-
-        const season = body.seasons[0];
-        expect(season.stats.passing.YDS).toBe(3500);
-        expect(season.stats.rushing.YDS).toBe(400);
-        expect(season.stats.receiving).toBeUndefined();
+        expect(body.seasons[0].stats.passing.YDS).toBe(3500);
+        expect(body.seasons[0].stats.rushing.YDS).toBe(400);
     });
 
-    it("returns defensive categories for a defensive position", async () => {
-        const seasons = JSON.stringify([{ year: "2023", team: "Alabama" }]);
-        const { db } = makeDb({ results: [{ Position: "LB", Seasons: seasons }] });
+    it("returns defensive categories for a linebacker", async () => {
+        cfbd.cfbdGql
+            .mockResolvedValueOnce({
+                athleteByPk: {
+                    position: { abbreviation: "LB" },
+                    athleteTeams: [{ startYear: 2023, team: { school: "Alabama" } }],
+                },
+            })
+            .mockResolvedValueOnce({
+                gamePlayerStat: [
+                    { year: 2023, team: { school: "Alabama" }, category: "defensive", statType: "TOT", stat: 80 },
+                    { year: 2023, team: { school: "Alabama" }, category: "interceptions", statType: "INT", stat: 2 },
+                ],
+            });
 
-        fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve([
-            { player_id: 7, category: "defensive", stat_type: "TOT", stat: 80 },
-            { player_id: 7, category: "interceptions", stat_type: "INT", stat: 2 },
-        ]) });
-
-        const res = await getPlayerStats(
-            makeRequest("/api/guys/player-stats?playerId=7"),
-            { games_db: db }
-        );
+        const res = await getPlayerStats(makeRequest("/api/guys/player-stats?playerId=7"), FAKE_ENV);
         const body = await res.json();
         expect(body.categories).toEqual(["defensive", "interceptions", "fumbles"]);
         expect(body.seasons[0].stats.defensive.TOT).toBe(80);
-        expect(body.seasons[0].stats.interceptions.INT).toBe(2);
     });
 
-    it("returns all categories for an unknown position", async () => {
-        const seasons = JSON.stringify([{ year: "2023", team: "Michigan" }]);
-        const { db } = makeDb({ results: [{ Position: "OL", Seasons: seasons }] });
+    it("groups stats by year and team", async () => {
+        cfbd.cfbdGql
+            .mockResolvedValueOnce({
+                athleteByPk: {
+                    position: { abbreviation: "WR" },
+                    athleteTeams: [
+                        { startYear: 2021, team: { school: "LSU" } },
+                        { startYear: 2022, team: { school: "Oregon" } },
+                    ],
+                },
+            })
+            .mockResolvedValueOnce({
+                gamePlayerStat: [
+                    { year: 2021, team: { school: "LSU" },    category: "receiving", statType: "YDS", stat: 800 },
+                    { year: 2022, team: { school: "Oregon" }, category: "receiving", statType: "YDS", stat: 1200 },
+                ],
+            });
 
-        fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve([
-            { player_id: 3, category: "rushing", stat_type: "YDS", stat: 10 },
-        ]) });
-
-        const res = await getPlayerStats(
-            makeRequest("/api/guys/player-stats?playerId=3"),
-            { games_db: db }
-        );
+        const res = await getPlayerStats(makeRequest("/api/guys/player-stats?playerId=10"), FAKE_ENV);
         const body = await res.json();
-        // OL is not in any known position map → categories is null → returns all CATEGORY_COLUMNS keys
-        expect(body.categories).toBeInstanceOf(Array);
-        expect(body.categories.length).toBeGreaterThan(4);
-        expect(body.seasons[0].stats.rushing.YDS).toBe(10);
+        expect(body.seasons).toHaveLength(2);
+        const lsuSeason = body.seasons.find(s => s.team === "LSU");
+        expect(lsuSeason.stats.receiving.YDS).toBe(800);
+        const oregonSeason = body.seasons.find(s => s.team === "Oregon");
+        expect(oregonSeason.stats.receiving.YDS).toBe(1200);
     });
 
-    it("fetches stats for each season in the player's Seasons array", async () => {
-        const seasons = JSON.stringify([
-            { year: "2021", team: "LSU" },
-            { year: "2022", team: "Oregon" },
-        ]);
-        const { db } = makeDb({ results: [{ Position: "WR", Seasons: seasons }] });
+    it("returns empty stats when gamePlayerStat returns no rows", async () => {
+        cfbd.cfbdGql
+            .mockResolvedValueOnce({
+                athleteByPk: {
+                    position: { abbreviation: "RB" },
+                    athleteTeams: [{ startYear: 2023, team: { school: "Texas" } }],
+                },
+            })
+            .mockResolvedValueOnce({ gamePlayerStat: [] });
 
-        fetch.mockResolvedValue({ ok: true, json: () => Promise.resolve([]) });
-
-        await getPlayerStats(
-            makeRequest("/api/guys/player-stats?playerId=10"),
-            { games_db: db }
-        );
-
-        expect(fetch).toHaveBeenCalledTimes(2);
-        const urls = fetch.mock.calls.map(([url]) => url);
-        expect(urls.some(u => u.includes("year=2021") && u.includes("LSU"))).toBe(true);
-        expect(urls.some(u => u.includes("year=2022") && u.includes("Oregon"))).toBe(true);
-    });
-
-    it("handles a failed CFBD fetch gracefully by returning empty stats", async () => {
-        const seasons = JSON.stringify([{ year: "2023", team: "Texas" }]);
-        const { db } = makeDb({ results: [{ Position: "RB", Seasons: seasons }] });
-
-        fetch.mockResolvedValue({ ok: false, status: 503 });
-
-        const res = await getPlayerStats(
-            makeRequest("/api/guys/player-stats?playerId=5"),
-            { games_db: db }
-        );
+        const res = await getPlayerStats(makeRequest("/api/guys/player-stats?playerId=5"), FAKE_ENV);
         expect(res.status).toBe(200);
         const body = await res.json();
-        expect(body.seasons[0].stats).toEqual({});
+        expect(body.seasons).toEqual([]);
+    });
+
+    it("includes categoryColumns in the response", async () => {
+        cfbd.cfbdGql
+            .mockResolvedValueOnce({
+                athleteByPk: { position: { abbreviation: "QB" }, athleteTeams: [] },
+            })
+            .mockResolvedValueOnce({ gamePlayerStat: [] });
+
+        const res = await getPlayerStats(makeRequest("/api/guys/player-stats?playerId=1"), FAKE_ENV);
+        const body = await res.json();
+        expect(body.categoryColumns).toBeDefined();
+        expect(body.categoryColumns.passing).toContain("YDS");
     });
 });
