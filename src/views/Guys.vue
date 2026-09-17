@@ -10,6 +10,8 @@
     const loading = ref(false);
     const statsLoading = ref(false);
     const error = ref(null);
+    const videos = ref(null);
+    const videosLoading = ref(false);
 
     onMounted(async () => {
         const id = parseInt(route.query.playerId, 10);
@@ -26,6 +28,7 @@
         player.value = data.player;
         statsData.value = data.stats;
         loading.value = false;
+        fetchVideos(data.player);
     });
 
     async function pickRandomPlayer() {
@@ -44,6 +47,7 @@
         player.value = data.player;
         statsData.value = data.stats;
         loading.value = false;
+        fetchVideos(data.player);
 
         router.replace({ query: { playerId: player.value.id } });
     }
@@ -52,7 +56,27 @@
         player.value = null;
         statsData.value = null;
         error.value = null;
+        videos.value = null;
         router.replace({ query: {} });
+    }
+
+    async function fetchVideos(p) {
+        videosLoading.value = true;
+        videos.value = null;
+        const params = new URLSearchParams({
+            firstName: p.firstName,
+            lastName:  p.lastName,
+            position:  p.position?.abbreviation ?? '',
+        });
+        try {
+            const res = await fetch(`/api/guys/videos?${params}`);
+            if (res.ok) {
+                const data = await res.json();
+                videos.value = data.videos;
+            }
+        } finally {
+            videosLoading.value = false;
+        }
     }
 
     function uniqueSchools(seasons) {
@@ -122,6 +146,33 @@
                 <p v-if="Object.keys(statsData).length === 0" class="no-stats">
                     No stats found for this player.
                 </p>
+
+                <div v-if="videosLoading" class="videos-loading">Loading highlights...</div>
+                <div v-else-if="videos?.length" class="video-section">
+                    <h3>Highlights</h3>
+                    <div class="video-cards">
+                        <div
+                            v-for="v in videos"
+                            :key="v.videoId"
+                            class="video-card"
+                        >
+                            <div class="video-iframe-wrapper">
+                                <iframe
+                                    :src="`https://www.youtube.com/embed/${v.videoId}`"
+                                    :title="v.title"
+                                    frameborder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowfullscreen
+                                ></iframe>
+                            </div>
+                            <div class="video-meta">
+                                <span class="video-title">{{ v.title }}</span>
+                                <span class="video-channel">{{ v.channel }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="intro">
                     <button :class="{ loading }" :disabled="loading" @click="pickRandomPlayer">
                         {{ loading ? 'Loading...' : 'Remember Someone Else' }}
@@ -294,5 +345,73 @@
     .no-stats {
         opacity: 0.5;
         font-size: 0.9rem;
+    }
+
+    .videos-loading {
+        opacity: 0.6;
+        font-size: 0.9rem;
+    }
+
+    .video-section {
+        max-width: 700px;
+        width: 100%;
+
+        h3 {
+            color: base.$ptku-blue;
+            font-size: 0.85rem;
+            font-weight: bold;
+            letter-spacing: 0.08em;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+    }
+
+    .video-cards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .video-card {
+        border: 2px solid base.$ptku-blue;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        overflow: hidden;
+    }
+
+    .video-iframe-wrapper {
+        aspect-ratio: 16 / 9;
+        width: 100%;
+
+        iframe {
+            display: block;
+            height: 100%;
+            width: 100%;
+        }
+    }
+
+    .video-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 0 14px 12px;
+    }
+
+    .video-title {
+        display: -webkit-box;
+        font-size: 0.9rem;
+        font-weight: bold;
+        line-clamp: 2;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .video-channel {
+        color: base.$color-text;
+        font-size: 0.75rem;
+        opacity: 0.5;
     }
 </style>
