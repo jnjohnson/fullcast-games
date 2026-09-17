@@ -97,7 +97,7 @@
                             <thead>
                                 <tr>
                                     <th>Year</th>
-                                    <!-- <th>Team</th> -->
+                                    <th>Team</th>
                                     <th
                                         v-for="name in stats.statNames"
                                         :key="name"
@@ -109,7 +109,7 @@
                                     v-for="season in stats.seasons"
                                 >
                                     <td>{{ season.season }}</td>
-                                    <!-- <td>{{ season.team }}</td> -->
+                                    <td>{{ season.team }}</td>
                                     <td
                                         v-for="col in season.stats"
                                         :key="col"
@@ -241,7 +241,6 @@
         flex-flow: column nowrap;
         gap: 30px;
         max-width: 700px;
-        overflow: scroll;
         width: 100%;
 
         .stat-type {
