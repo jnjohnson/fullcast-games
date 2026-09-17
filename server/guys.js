@@ -13,10 +13,33 @@ const ATHLETE_FIELDS = `
     }
 `;
 
-// Returns a single random player from the CFBD athlete database as a JSON response.
+// Returns a single random player's compiled statistics from the CFBD database as a JSON response.
 // Picks a random row using athleteAggregate count + random offset. Returns 404 if empty.
-// Response body: { id, firstName, lastName, position, seasons } where seasons is
-// an array of { year, team } objects derived from the athlete's team history.
+// Response body: 
+// { player: {
+//      id: Int
+//      firstName: String
+//      lastName: String
+//      position: {
+//          abbreviation: String
+//      }
+//      athleteTeams: [{
+// 			startYear: String
+// 			team: {
+// 				school: String
+// 			}
+// 		}]
+//  },
+//  stats: {
+// 	    statType (String): {
+// 		    statNames: [String]
+//      }
+// 		seasons: [{
+//          season: Int
+//          stats: {statname (String): statValue (Int)}
+//      }]
+//  }
+// }
 export async function getRandomPlayer(env) {
     let stats = {};
     let player = {};
@@ -54,7 +77,7 @@ export async function getRandomPlayer(env) {
 
 // Fetches a single player by ID from the CFBD GraphQL API.
 // Requires a `playerId` query parameter (integer). Returns 400 if missing, 404 if not found.
-// Response body: { id, firstName, lastName, position, seasons } — same shape as getRandomPlayer.
+// Response body is same shape as getRandomPlayer.
 export async function getPlayerById(request, env) {
     let stats = {};
     let player = {};
@@ -84,13 +107,12 @@ export async function getPlayerById(request, env) {
 }
 
 // Fetches season stats for a player from the CFBD GraphQL API.
-// Requires a `playerId` query parameter (integer). Returns 400 if missing, 404 if not found.
+// Requires a `playerId` parameter (integer). Returns 400 if missing, 404 if not found.
 // A single GraphQL call replaces the previous N parallel REST calls (one per season).
-// Response body: { playerId, categories, categoryColumns, seasons: [{ year, team, stats }] }
 export async function getPlayerStats(playerId, env) {
     let statsData = {};
     if (!playerId) {
-        return [];
+        return new Response(JSON.stringify({ error: 'Missing playerId' }), { status: 400 });
     }
     try {
         statsData = await cfbdGql(`
@@ -102,6 +124,7 @@ export async function getPlayerStats(playerId, env) {
                         playerStatType: {name: ASC}
                     }
                 ) {
+                    athlete { athleteTeams { startYear team { nickname } } }
                     gameTeam { game { season } }
                     playerStatCategory { name }
                     playerStatType { name }
@@ -116,41 +139,100 @@ export async function getPlayerStats(playerId, env) {
     // TODO: Add team name string to each year
     const statMap = {};
     for (const row of statsData.gamePlayerStat) {
-        const key = row.playerStatCategory.name;
         const statName = row.playerStatType.name;
         const season = row.gameTeam.game.season;
+        const teams = row.athlete.athleteTeams;
+        let key = row.playerStatCategory.name;
         let seasonIdx = -1;
         let seasonObj = {};
+
+        if (key === 'kickReturns') {
+            key = 'Kick Returns';
+        } else if (key === 'puntReturns') {
+            key = 'Punt Returns';
+        }
 
         if (!statMap[key]) {
             // Seasons - Array of {season: String, stats: {statName: statValue}}
             statMap[key] = {statNames: [], seasons: []};
         }
-        if (statMap[key].statNames.indexOf(statName) === -1) {
+        if (statMap[key].statNames.indexOf(statName) === -1 && statName !== 'PCT') {
             statMap[key].statNames.push(statName);
+            
+            if (statName === 'FG') {
+                statMap[key].statNames.push('FG %');
+            } else if (statName === 'XP') {
+                statMap[key].statNames.push('XP %');
+            }
         }
 
         seasonIdx = statMap[key].seasons.findIndex(o => o.season === season);
         if (seasonIdx === -1) {
+            let teamName = '';
             seasonIdx = statMap[key].seasons.length;
-            seasonObj = {season: season, stats: {}};
+            
+            for (const team of teams) {
+                if (team.startYear <= season) {
+                    teamName = team.team.nickname;
+                }
+            }
+
+            seasonObj = {season: season, team: teamName, stats: {}};
         } else {
             seasonObj = statMap[key].seasons[seasonIdx];
         }
         if (!(statName in seasonObj.stats)) {
-            seasonObj.stats[statName] = statName === "C/ATT" ? '0/0' : 0;
+            if (['C/ATT', 'FG', 'XP'].includes(statName)) {
+                seasonObj.stats[statName] = '0/0';
+
+                if (statName === 'FG') {
+                    seasonObj.stats['FG %'] = 0;
+                } else if (statName === 'XP') {
+                    seasonObj.stats['XP %'] = 0;
+                }
+            } else if (statName === 'PCT') {
+                continue;
+            } else {
+                seasonObj.stats[statName] = 0;
+            }
         }
-        if (statName === "C/ATT") {
+        if (['C/ATT', 'FG', 'XP'].includes(statName)) {
             const seasonSplit = seasonObj.stats[statName].split('/');
             const gameSplit = row.stat.split('/');
             seasonSplit[0] = Number(seasonSplit[0]) + Number(gameSplit[0]);
             seasonSplit[1] = Number(seasonSplit[1]) + Number(gameSplit[1]);
             seasonObj.stats[statName] = seasonSplit.join("/");
+        } else if (statName === 'LONG') {
+            const long = seasonObj.stats['LONG'];
+            seasonObj.stats['LONG'] = long > Number(row.stat) ? long : Number(row.stat);
+        } else if (statName === 'AVG') {
+            seasonObj.stats['AVG'] = 0;
         } else {
             seasonObj.stats[statName] += Number(row.stat);
         }
         statMap[key].seasons[seasonIdx] = seasonObj;
     }
-    // const seasons = Object.values(statMap.seasons).sort((a, b) => a.seasons - b.seasons);
+    
+    for (const statType in statMap) {
+        if (statMap[statType].statNames.includes('AVG')) {
+            for (const season of statMap[statType].seasons) {
+                const yards = season.stats['YDS'];
+                const attempts = season.stats['REC'] || season.stats['CAR'] || season.stats['NO'];
+                season.stats['AVG'] = (yards / attempts).toFixed(1);
+            }
+        }
+        if (statMap[statType].statNames.includes('FG')) {
+            for (const season of statMap[statType].seasons) {
+                const split = season.stats['FG'].split('/');
+                season.stats['FG %'] = ((Number(split[0]) / Number(split[1])) * 100).toFixed(1);
+            }
+        }
+        if (statMap[statType].statNames.includes('XP')) {
+            for (const season of statMap[statType].seasons) {
+                const split = season.stats['XP'].split('/');
+                season.stats['XP %'] = ((Number(split[0]) / Number(split[1])) * 100).toFixed(1);
+            }
+        }
+    }
     return statMap;
 }
