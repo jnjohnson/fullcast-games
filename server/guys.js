@@ -168,12 +168,14 @@ export async function getPlayerStats(playerId, env) {
 
         seasonIdx = statMap[key].seasons.findIndex(o => o.season === season);
         if (seasonIdx === -1) {
-            let teamName = '';
+            let teamName = 'N/A';
+            let curStartYear = 0;
             seasonIdx = statMap[key].seasons.length;
             
             for (const team of teams) {
-                if (team.startYear <= season) {
+                if (team.startYear <= season && team.startYear > curStartYear) {
                     teamName = team.team.nickname;
+                    curStartYear = team.startYear;
                 }
             }
 
@@ -207,7 +209,7 @@ export async function getPlayerStats(playerId, env) {
             seasonObj.stats['LONG'] = long > Number(row.stat) ? long : Number(row.stat);
         } else if (statName === 'AVG') {
             seasonObj.stats['AVG'] = 0;
-        } else {
+        } else if (!isNaN(row.stat)) {
             seasonObj.stats[statName] += Number(row.stat);
         }
         statMap[key].seasons[seasonIdx] = seasonObj;
@@ -217,7 +219,7 @@ export async function getPlayerStats(playerId, env) {
         if (statMap[statType].statNames.includes('AVG')) {
             for (const season of statMap[statType].seasons) {
                 const yards = season.stats['YDS'];
-                const attempts = season.stats['REC'] || season.stats['CAR'] || season.stats['NO'];
+                const attempts = season.stats['REC'] || season.stats['CAR'] || season.stats['NO'] || Number(season.stats['C/ATT'].split('/')[1]);
                 season.stats['AVG'] = (yards / attempts).toFixed(1);
             }
         }
