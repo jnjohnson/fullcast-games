@@ -364,54 +364,54 @@
             margin-bottom: 12px;
             text-transform: uppercase;
         }
-    }
-
-    .video-cards {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
-    }
-
-    .video-card {
-        border: 2px solid base.$ptku-blue;
-        border-radius: 8px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        overflow: hidden;
-    }
-
-    .video-iframe-wrapper {
-        aspect-ratio: 16 / 9;
-        width: 100%;
-
-        iframe {
-            display: block;
-            height: 100%;
+        .video-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            
+            .video-card {
+                border: 2px solid base.$ptku-blue;
+                border-radius: 8px;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                overflow: hidden;
+            }
+        }
+    
+    
+        .video-iframe-wrapper {
+            aspect-ratio: 16 / 9;
             width: 100%;
+    
+            iframe {
+                display: block;
+                height: 100%;
+                width: 100%;
+            }
+        }
+    
+        .video-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 0 14px 12px;
+        }
+    
+        .video-title {
+            display: -webkit-box;
+            font-size: 0.9rem;
+            line-clamp: 2;
+            overflow: hidden;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+        }
+    
+        .video-channel {
+            color: base.$color-text;
+            font-size: 0.75rem;
+            opacity: 0.5;
         }
     }
 
-    .video-meta {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        padding: 0 14px 12px;
-    }
-
-    .video-title {
-        display: -webkit-box;
-        font-size: 0.9rem;
-        font-weight: bold;
-        line-clamp: 2;
-        overflow: hidden;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
-    }
-
-    .video-channel {
-        color: base.$color-text;
-        font-size: 0.75rem;
-        opacity: 0.5;
-    }
 </style>
