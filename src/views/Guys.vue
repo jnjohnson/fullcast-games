@@ -4,7 +4,7 @@
 
     const POSITIONS   = ['QB','RB','FB','WR','TE','OT','OG','C','DE','DT','LB','CB','S','K','P','LS'];
     const CONFERENCES = ['ACC','Big 12','Big Ten','C-USA','Ind','MAC','MWC','SEC','Sun Belt'];
-    const YEARS       = Array.from({ length: 26 }, (_, i) => 2025 - i);
+    const YEARS       = Array.from({ length: 24 }, (_, i) => 2026 - i);
     const SCHOOLS = [
         'Air Force','Akron','Alabama','Appalachian State','Arizona','Arizona State',
         'Arkansas','Arkansas State','Army','Auburn','Ball State','Baylor','Boise State',
@@ -39,6 +39,7 @@
     const error = ref(null);
     const videos = ref(null);
     const videosLoading = ref(false);
+    const isFilterOpen = ref({position: false, school: false, conference: false, year: false});
     const filters = ref({ position: [], school: [], conference: [], year: [] });
 
     onMounted(async () => {
@@ -137,6 +138,16 @@
         return ranges;
     }
 
+    function toggleFilter(filter) {
+        for (const [key, arr] of Object.entries(isFilterOpen.value)) {
+            if (key === filter) {
+                isFilterOpen.value[filter] = !isFilterOpen.value[filter];
+            } else {
+                isFilterOpen.value[key] = false;
+            }
+        }
+    }
+
     function removeFilter(key, value) {
         filters.value[key] = filters.value[key].filter(v => v !== value);
     }
@@ -156,8 +167,7 @@
         <div v-if="!player" class="intro">
             <div class="filters">
                 <div class="filter-group">
-                    <label>Position</label>
-                    <div v-if="filters.position.length" class="chips">
+                    <div class="chips">
                         <span
                             v-for="val in filters.position"
                             :key="val"
@@ -165,16 +175,22 @@
                             @click="removeFilter('position', val)"
                         >{{ val }} ×</span>
                     </div>
-                    <div class="filter-list">
-                        <label v-for="p in POSITIONS" :key="p" class="checkbox-item">
-                            <input type="checkbox" :value="p" v-model="filters.position" />
-                            {{ p }}
+                    <label>Position</label>
+                    <div class="filter-list" :class="{open: isFilterOpen.position}">
+                        <label class="checkbox-item filter-name" @click="toggleFilter('position')">
+                            Position
+                            <i class="fa fa-chevron-down" aria-hidden="true"></i>
                         </label>
+                        <div class="filter-items">
+                            <label v-for="p in POSITIONS" :key="p" class="checkbox-item">
+                                <input type="checkbox" :value="p" v-model="filters.position" />
+                                {{ p }}
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <div class="filter-group">
-                    <label>School</label>
-                    <div v-if="filters.school.length" class="chips">
+                    <div class="chips">
                         <span
                             v-for="val in filters.school"
                             :key="val"
@@ -182,16 +198,22 @@
                             @click="removeFilter('school', val)"
                         >{{ val }} ×</span>
                     </div>
-                    <div class="filter-list">
-                        <label v-for="s in SCHOOLS" :key="s" class="checkbox-item">
-                            <input type="checkbox" :value="s" v-model="filters.school" />
-                            {{ s }}
+                    <label>School</label>
+                    <div class="filter-list" :class="{open: isFilterOpen.school}">
+                        <label class="checkbox-item filter-name" @click="toggleFilter('school')">
+                            School 
+                            <i class="fa fa-chevron-down" aria-hidden="true"></i>
                         </label>
+                        <div class="filter-items">
+                            <label v-for="s in SCHOOLS" :key="s" class="checkbox-item">
+                                <input type="checkbox" :value="s" v-model="filters.school" />
+                                {{ s }}
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <div class="filter-group">
-                    <label>Conference</label>
-                    <div v-if="filters.conference.length" class="chips">
+                    <div class="chips">
                         <span
                             v-for="val in filters.conference"
                             :key="val"
@@ -199,16 +221,22 @@
                             @click="removeFilter('conference', val)"
                         >{{ val }} ×</span>
                     </div>
-                    <div class="filter-list">
-                        <label v-for="c in CONFERENCES" :key="c" class="checkbox-item">
-                            <input type="checkbox" :value="c" v-model="filters.conference" />
-                            {{ c }}
+                    <label>Conference</label>
+                    <div class="filter-list" :class="{open: isFilterOpen.conference}">
+                        <label class="checkbox-item filter-name" @click="toggleFilter('conference')">
+                            Conference
+                            <i class="fa fa-chevron-down" aria-hidden="true"></i>
                         </label>
+                        <div class="filter-items">
+                            <label v-for="c in CONFERENCES" :key="c" class="checkbox-item">
+                                <input type="checkbox" :value="c" v-model="filters.conference" />
+                                {{ c }}
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <div class="filter-group">
-                    <label>Year</label>
-                    <div v-if="filters.year.length" class="chips">
+                    <div class="chips">
                         <span
                             v-for="range in formatYearChips(filters.year)"
                             :key="range"
@@ -216,11 +244,18 @@
                             @click="removeYearRange(range)"
                         >{{ range }} ×</span>
                     </div>
-                    <div class="filter-list">
-                        <label v-for="y in YEARS" :key="y" class="checkbox-item">
-                            <input type="checkbox" :value="y" v-model="filters.year" />
-                            {{ y }}
+                    <label>Year</label>
+                    <div class="filter-list" :class="{open: isFilterOpen.year}">
+                        <label class="checkbox-item filter-name" @click="toggleFilter('year')">
+                            Year
+                            <i class="fa fa-chevron-down" aria-hidden="true"></i>
                         </label>
+                        <div class="filter-items">
+                            <label v-for="y in YEARS" :key="y" class="checkbox-item">
+                                <input type="checkbox" :value="y" v-model="filters.year" />
+                                {{ y }}
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -337,8 +372,8 @@
         flex-direction: column;
         align-items: center;
         gap: 20px;
-        margin-top: 40px;
         text-align: center;
+        width: 100%;
 
         h2 {
             font-size: 1.8rem;
@@ -357,15 +392,13 @@
         gap: 16px;
         justify-content: center;
         width: 100%;
-        max-width: 700px;
     }
 
     .filter-group {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        min-width: 120px;
         flex: 1;
+        min-width: 120px;
+        padding-bottom: 48px;
+        position: relative;
 
         > label {
             color: base.$color-text;
@@ -382,12 +415,28 @@
         background: base.$color-background;
         border: 1px solid base.$ptku-blue;
         border-radius: 6px;
-        max-height: 120px;
-        overflow-y: auto;
-        padding: 4px 0;
+        position: absolute;
+        top: calc(100% - 40px);
+        width: 100%;
 
         &:focus-within {
             border-color: base.$ptku-pink;
+        }
+        &.open {
+            .filter-items {
+                height: 240px;
+            }
+            .checkbox-item.filter-name {
+                i {
+                    transform: rotate(180deg);
+                }
+            }
+        }
+
+        .filter-items {
+            height: 0px;
+            overflow-y: scroll;
+            transition: height 0.3s;
         }
     }
 
@@ -408,13 +457,27 @@
             cursor: pointer;
             flex-shrink: 0;
         }
+
+        &.filter-name {
+            padding: 9px 10px;
+            position: relative;
+
+            i {
+                right: 10px;
+                position: absolute;
+                top: 12px;
+                transition: transform 0.3s;
+            }
+        }
     }
 
     .chips {
         display: flex;
         flex-wrap: wrap;
+        align-items: flex-end;
         gap: 4px;
-        margin-bottom: 2px;
+        min-height: 60px;
+        margin-bottom: 10px;
     }
 
     .chip {
