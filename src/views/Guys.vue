@@ -2,6 +2,33 @@
     import { ref, onMounted } from 'vue';
     import { useRoute, useRouter } from 'vue-router';
 
+    const POSITIONS   = ['QB','RB','FB','WR','TE','OT','OG','C','DE','DT','LB','CB','S','K','P','LS'];
+    const CONFERENCES = ['ACC','Big 12','Big Ten','C-USA','Ind','MAC','MWC','SEC','Sun Belt'];
+    const YEARS       = Array.from({ length: 26 }, (_, i) => 2025 - i);
+    const SCHOOLS = [
+        'Air Force','Akron','Alabama','Appalachian State','Arizona','Arizona State',
+        'Arkansas','Arkansas State','Army','Auburn','Ball State','Baylor','Boise State',
+        'Boston College','Bowling Green','Buffalo','BYU','California','Central Michigan',
+        'Charlotte','Cincinnati','Clemson','Coastal Carolina','Colorado','Colorado State',
+        'Connecticut','Duke','East Carolina','Eastern Michigan','Florida','Florida Atlantic',
+        'Florida International','Florida State','Fresno State','Georgia','Georgia Southern',
+        'Georgia State','Georgia Tech','Hawaii','Houston','Illinois','Indiana',
+        'Iowa','Iowa State','Jacksonville State','James Madison','Kansas','Kansas State',
+        'Kent State','Kentucky','Liberty','Louisiana','Louisiana Monroe','Louisiana Tech',
+        'Louisville','LSU','Marshall','Maryland','Massachusetts','Memphis','Miami',
+        'Miami (OH)','Michigan','Michigan State','Middle Tennessee','Minnesota','Mississippi State',
+        'Missouri','Navy','NC State','Nebraska','Nevada','New Mexico','New Mexico State',
+        'North Carolina','North Texas','Northern Illinois','Northwestern','Notre Dame',
+        'Ohio','Ohio State','Oklahoma','Oklahoma State','Old Dominion','Ole Miss',
+        'Oregon','Oregon State','Penn State','Pittsburgh','Purdue','Rice','Rutgers',
+        'Sam Houston','San Diego State','San Jose State','SMU','South Alabama',
+        'South Carolina','South Florida','Southern Miss','Stanford','Syracuse',
+        'TCU','Temple','Tennessee','Texas','Texas A&M','Texas State','Texas Tech',
+        'Toledo','Troy','Tulane','Tulsa','UAB','UCF','UCLA','UNLV','USC','Utah',
+        'Utah State','UTEP','UTSA','Vanderbilt','Virginia','Virginia Tech','Wake Forest',
+        'Washington','Washington State','Western Kentucky','Western Michigan','Wisconsin','Wyoming',
+    ];
+
     const route = useRoute();
     const router = useRouter();
 
@@ -12,6 +39,7 @@
     const error = ref(null);
     const videos = ref(null);
     const videosLoading = ref(false);
+    const filters = ref({ position: [], school: [], conference: [], year: [] });
 
     onMounted(async () => {
         const id = parseInt(route.query.playerId, 10);
@@ -37,7 +65,11 @@
         player.value = null;
         statsData.value = null;
 
-        const res = await fetch('/api/guys/random-player');
+        const params = new URLSearchParams();
+        for (const [key, arr] of Object.entries(filters.value)) {
+            for (const val of arr) params.append(key, val);
+        }
+        const res = await fetch(`/api/guys/random-player?${params}`);
         if (!res.ok) {
             error.value = 'We can\'t remember a single guy right now. Check back later!';
             loading.value = false;
@@ -57,6 +89,7 @@
         statsData.value = null;
         error.value = null;
         videos.value = null;
+        filters.value = { position: [], school: [], conference: [], year: [] };
         router.replace({ query: {} });
     }
 
@@ -83,9 +116,36 @@
         return [...new Set(seasons.map(s => s.team.school))].join(', ');
     }
 
-    // Returns stat value or '—' if missing
     function statVal(stats, category, col) {
         return stats[category] ?? '0';
+    }
+
+    function formatYearChips(years) {
+        if (!years.length) return [];
+        const sorted = [...years].sort((a, b) => a - b);
+        const ranges = [];
+        let start = sorted[0], end = sorted[0];
+        for (let i = 1; i < sorted.length; i++) {
+            if (sorted[i] === end + 1) {
+                end = sorted[i];
+            } else {
+                ranges.push(start === end ? `${start}` : `${start} - ${end}`);
+                start = end = sorted[i];
+            }
+        }
+        ranges.push(start === end ? `${start}` : `${start} - ${end}`);
+        return ranges;
+    }
+
+    function removeFilter(key, value) {
+        filters.value[key] = filters.value[key].filter(v => v !== value);
+    }
+
+    function removeYearRange(rangeLabel) {
+        const [from, to] = rangeLabel.includes(' - ')
+            ? rangeLabel.split(' - ').map(Number)
+            : [Number(rangeLabel), Number(rangeLabel)];
+        filters.value.year = filters.value.year.filter(y => y < from || y > to);
     }
 </script>
 
@@ -94,6 +154,76 @@
         <RouterLink to="/" class="back-link">← Back</RouterLink>
 
         <div v-if="!player" class="intro">
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Position</label>
+                    <div v-if="filters.position.length" class="chips">
+                        <span
+                            v-for="val in filters.position"
+                            :key="val"
+                            class="chip"
+                            @click="removeFilter('position', val)"
+                        >{{ val }} ×</span>
+                    </div>
+                    <div class="filter-list">
+                        <label v-for="p in POSITIONS" :key="p" class="checkbox-item">
+                            <input type="checkbox" :value="p" v-model="filters.position" />
+                            {{ p }}
+                        </label>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>School</label>
+                    <div v-if="filters.school.length" class="chips">
+                        <span
+                            v-for="val in filters.school"
+                            :key="val"
+                            class="chip"
+                            @click="removeFilter('school', val)"
+                        >{{ val }} ×</span>
+                    </div>
+                    <div class="filter-list">
+                        <label v-for="s in SCHOOLS" :key="s" class="checkbox-item">
+                            <input type="checkbox" :value="s" v-model="filters.school" />
+                            {{ s }}
+                        </label>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Conference</label>
+                    <div v-if="filters.conference.length" class="chips">
+                        <span
+                            v-for="val in filters.conference"
+                            :key="val"
+                            class="chip"
+                            @click="removeFilter('conference', val)"
+                        >{{ val }} ×</span>
+                    </div>
+                    <div class="filter-list">
+                        <label v-for="c in CONFERENCES" :key="c" class="checkbox-item">
+                            <input type="checkbox" :value="c" v-model="filters.conference" />
+                            {{ c }}
+                        </label>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Year</label>
+                    <div v-if="filters.year.length" class="chips">
+                        <span
+                            v-for="range in formatYearChips(filters.year)"
+                            :key="range"
+                            class="chip"
+                            @click="removeYearRange(range)"
+                        >{{ range }} ×</span>
+                    </div>
+                    <div class="filter-list">
+                        <label v-for="y in YEARS" :key="y" class="checkbox-item">
+                            <input type="checkbox" :value="y" v-model="filters.year" />
+                            {{ y }}
+                        </label>
+                    </div>
+                </div>
+            </div>
             <p v-if="error" class="error-msg">{{ error }}</p>
             <button :class="{ loading }" :disabled="loading" @click="pickRandomPlayer">
                 {{ loading ? 'Loading...' : 'Remember A Guy' }}
@@ -218,6 +348,86 @@
             color: base.$color-text;
             font-size: 1.1rem;
             opacity: 0.8;
+        }
+    }
+
+    .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        justify-content: center;
+        width: 100%;
+        max-width: 700px;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 120px;
+        flex: 1;
+
+        > label {
+            color: base.$color-text;
+            font-size: 0.7rem;
+            font-weight: bold;
+            letter-spacing: 0.08em;
+            opacity: 0.6;
+            text-transform: uppercase;
+        }
+
+    }
+
+    .filter-list {
+        background: base.$color-background;
+        border: 1px solid base.$ptku-blue;
+        border-radius: 6px;
+        max-height: 120px;
+        overflow-y: auto;
+        padding: 4px 0;
+
+        &:focus-within {
+            border-color: base.$ptku-pink;
+        }
+    }
+
+    .checkbox-item {
+        align-items: center;
+        cursor: pointer;
+        display: flex;
+        font-size: 0.85rem;
+        gap: 8px;
+        padding: 4px 10px;
+
+        &:hover {
+            background: rgba(base.$ptku-blue, 0.1);
+        }
+
+        input[type="checkbox"] {
+            accent-color: base.$ptku-blue;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+    }
+
+    .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: 2px;
+    }
+
+    .chip {
+        background: base.$ptku-blue;
+        border-radius: 4px;
+        color: base.$color-background;
+        cursor: pointer;
+        font-size: 0.75rem;
+        font-weight: bold;
+        padding: 2px 7px;
+
+        &:hover {
+            background: base.$ptku-pink;
         }
     }
 
