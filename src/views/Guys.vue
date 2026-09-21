@@ -158,15 +158,11 @@
         }
     }
 
-    function removeFilter(key, value) {
-        filters.value[key] = filters.value[key].filter(v => v !== value);
-    }
-
-    function removeYearRange(rangeLabel) {
-        const [from, to] = rangeLabel.includes(' - ')
-            ? rangeLabel.split(' - ').map(Number)
-            : [Number(rangeLabel), Number(rangeLabel)];
-        filters.value.year = filters.value.year.filter(y => y < from || y > to);
+    function filterLabel(f) {
+        const selected = f.isYear
+            ? formatYearChips(filters.value.year)
+            : filters.value[f.key];
+        return selected.length ? selected.join(', ') : f.label;
     }
 </script>
 
@@ -177,27 +173,9 @@
         <div class="intro">
             <div class="filters">
                 <div v-for="f in FILTER_DEFS" :key="f.key" class="filter-group">
-                    <div class="chips">
-                        <template v-if="f.isYear">
-                            <span
-                                v-for="range in formatYearChips(filters.year)"
-                                :key="range"
-                                class="chip"
-                                @click="removeYearRange(range)"
-                            >{{ range }} ×</span>
-                        </template>
-                        <template v-else>
-                            <span
-                                v-for="val in filters[f.key]"
-                                :key="val"
-                                class="chip"
-                                @click="removeFilter(f.key, val)"
-                            >{{ val }} ×</span>
-                        </template>
-                    </div>
                     <div class="filter-list" :class="{ open: isFilterOpen[f.key] }">
                         <label class="checkbox-item filter-name" @click="toggleFilter(f.key)">
-                            {{ f.label }}
+                            {{ filterLabel(f) }}
                             <i class="fa fa-chevron-down" aria-hidden="true"></i>
                         </label>
                         <div class="filter-items">
@@ -329,114 +307,87 @@
             font-size: 1.1rem;
             opacity: 0.8;
         }
-    }
-
-    .filters {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 16px;
-        justify-content: center;
-        width: 100%;
-    }
-
-    .filter-group {
-        flex: 1;
-        min-width: 120px;
-        padding-bottom: 48px;
-        position: relative;
-
-        > label {
-            color: base.$color-text;
-            font-size: 0.7rem;
-            font-weight: bold;
-            letter-spacing: 0.08em;
-            opacity: 0.6;
-            text-transform: uppercase;
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            justify-content: center;
+            width: 100%;
         }
-
-    }
-
-    .filter-list {
-        background: base.$color-background;
-        border: 1px solid base.$ptku-blue;
-        border-radius: 6px;
-        position: absolute;
-        top: calc(100% - 40px);
-        width: 100%;
-
-        &:focus-within {
-            border-color: base.$ptku-pink;
+    
+        .filter-group {
+            flex: 1;
+            min-width: 120px;
+            position: relative;
         }
-        &.open {
-            .filter-items {
-                height: 240px;
+    
+        .filter-list {
+            background: base.$color-background;
+            border: 1px solid base.$ptku-blue;
+            border-radius: 6px;
+            position: absolute;
+            top: calc(100% - 40px);
+            width: 100%;
+    
+            &:focus-within {
+                border-color: base.$ptku-pink;
             }
-            .checkbox-item.filter-name {
+            &.open {
+                .filter-items {
+                    height: 240px;
+                }
+                .checkbox-item.filter-name {
+                    i {
+                        transform: rotate(180deg);
+                    }
+                }
+            }
+    
+            .filter-items {
+                height: 0px;
+                overflow-y: scroll;
+                transition: height 0.3s;
+            }
+        }
+    
+        .checkbox-item {
+            align-items: center;
+            cursor: pointer;
+            display: flex;
+            font-size: 0.85rem;
+            gap: 8px;
+            padding: 4px 10px;
+    
+            &:hover {
+                background: rgba(base.$ptku-blue, 0.1);
+            }
+    
+            input[type="checkbox"] {
+                accent-color: base.$ptku-blue;
+                cursor: pointer;
+                flex-shrink: 0;
+            }
+    
+            &.filter-name {
+                display: block;
+                height: 40px;
+                overflow: hidden;
+                padding-right: 30px;
+                padding: 9px 30px 9px 10px;
+                position: relative;
+                text-align: left;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+    
                 i {
-                    transform: rotate(180deg);
+                    right: 10px;
+                    position: absolute;
+                    top: 12px;
+                    transition: transform 0.3s;
                 }
             }
         }
-
-        .filter-items {
-            height: 0px;
-            overflow-y: scroll;
-            transition: height 0.3s;
-        }
-    }
-
-    .checkbox-item {
-        align-items: center;
-        cursor: pointer;
-        display: flex;
-        font-size: 0.85rem;
-        gap: 8px;
-        padding: 4px 10px;
-
-        &:hover {
-            background: rgba(base.$ptku-blue, 0.1);
-        }
-
-        input[type="checkbox"] {
-            accent-color: base.$ptku-blue;
-            cursor: pointer;
-            flex-shrink: 0;
-        }
-
-        &.filter-name {
-            padding: 9px 10px;
-            position: relative;
-
-            i {
-                right: 10px;
-                position: absolute;
-                top: 12px;
-                transition: transform 0.3s;
-            }
-        }
-    }
-
-    .chips {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: flex-end;
-        gap: 4px;
-        min-height: 60px;
-        margin-bottom: 10px;
-    }
-
-    .chip {
-        background: base.$ptku-blue;
-        border-radius: 4px;
-        color: base.$color-background;
-        cursor: pointer;
-        font-size: 0.75rem;
-        font-weight: bold;
-        padding: 2px 7px;
-
-        &:hover {
-            background: base.$ptku-pink;
-        }
+    
     }
 
     .error-msg {
