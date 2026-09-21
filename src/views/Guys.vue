@@ -300,7 +300,7 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 30px;
+        gap: 50px;
         padding-bottom: 60px;
     }
 
@@ -315,9 +315,10 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 20px;
+        gap: 30px;
         text-align: center;
         width: 100%;
+        z-index: 100;
 
         h2 {
             font-size: 1.8rem;
@@ -368,7 +369,7 @@
         }
         &.open {
             .filter-items {
-                height: 220px;
+                height: 240px;
             }
             .checkbox-item.filter-name {
                 i {
