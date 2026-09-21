@@ -368,7 +368,7 @@
         }
         &.open {
             .filter-items {
-                height: 240px;
+                height: 220px;
             }
             .checkbox-item.filter-name {
                 i {
