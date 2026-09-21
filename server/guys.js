@@ -58,9 +58,15 @@ export async function getRandomPlayer(request, env) {
     }
     if (filters.school?.length || filters.conference?.length || filters.year?.length) {
         const teamWhere = {};
-        if (filters.school?.length)     teamWhere.team = { school: { _in: filters.school } };
-        if (filters.conference?.length) teamWhere.team = { ...teamWhere.team, conference: { name: { _in: filters.conference } } };
-        if (filters.year?.length)       teamWhere.startYear = { _in: filters.year };
+        if (filters.school?.length) {
+            teamWhere.team = { school: { _in: filters.school } };
+        }
+        if (filters.conference?.length) {
+            teamWhere.team = { ...teamWhere.team, conference: {_in: filters.conference } };
+        }
+        if (filters.year?.length) {
+            teamWhere.startYear = { _in: filters.year };
+        }
         where.athleteTeams = teamWhere;
     }
 
