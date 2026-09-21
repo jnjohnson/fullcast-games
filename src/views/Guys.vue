@@ -29,6 +29,13 @@
         'Washington','Washington State','Western Kentucky','Western Michigan','Wisconsin','Wyoming',
     ];
 
+    const FILTER_DEFS = [
+        { key: 'position',   label: 'Position',   options: POSITIONS   },
+        { key: 'school',     label: 'School',     options: SCHOOLS     },
+        { key: 'conference', label: 'Conference', options: CONFERENCES  },
+        { key: 'year',       label: 'Year',       options: YEARS,       isYear: true },
+    ];
+
     const route = useRoute();
     const router = useRouter();
 
@@ -117,10 +124,6 @@
         return [...new Set(seasons.map(s => s.team.school))].join(', ');
     }
 
-    function statVal(stats, category, col) {
-        return stats[category] ?? '0';
-    }
-
     function formatYearChips(years) {
         if (!years.length) return [];
         const sorted = [...years].sort((a, b) => a - b);
@@ -166,94 +169,35 @@
 
         <div v-if="!player" class="intro">
             <div class="filters">
-                <div class="filter-group">
+                <div v-for="f in FILTER_DEFS" :key="f.key" class="filter-group">
                     <div class="chips">
-                        <span
-                            v-for="val in filters.position"
-                            :key="val"
-                            class="chip"
-                            @click="removeFilter('position', val)"
-                        >{{ val }} ×</span>
+                        <template v-if="f.isYear">
+                            <span
+                                v-for="range in formatYearChips(filters.year)"
+                                :key="range"
+                                class="chip"
+                                @click="removeYearRange(range)"
+                            >{{ range }} ×</span>
+                        </template>
+                        <template v-else>
+                            <span
+                                v-for="val in filters[f.key]"
+                                :key="val"
+                                class="chip"
+                                @click="removeFilter(f.key, val)"
+                            >{{ val }} ×</span>
+                        </template>
                     </div>
-                    <label>Position</label>
-                    <div class="filter-list" :class="{open: isFilterOpen.position}">
-                        <label class="checkbox-item filter-name" @click="toggleFilter('position')">
-                            Position
+                    <label>{{ f.label }}</label>
+                    <div class="filter-list" :class="{ open: isFilterOpen[f.key] }">
+                        <label class="checkbox-item filter-name" @click="toggleFilter(f.key)">
+                            {{ f.label }}
                             <i class="fa fa-chevron-down" aria-hidden="true"></i>
                         </label>
                         <div class="filter-items">
-                            <label v-for="p in POSITIONS" :key="p" class="checkbox-item">
-                                <input type="checkbox" :value="p" v-model="filters.position" />
-                                {{ p }}
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div class="filter-group">
-                    <div class="chips">
-                        <span
-                            v-for="val in filters.school"
-                            :key="val"
-                            class="chip"
-                            @click="removeFilter('school', val)"
-                        >{{ val }} ×</span>
-                    </div>
-                    <label>School</label>
-                    <div class="filter-list" :class="{open: isFilterOpen.school}">
-                        <label class="checkbox-item filter-name" @click="toggleFilter('school')">
-                            School 
-                            <i class="fa fa-chevron-down" aria-hidden="true"></i>
-                        </label>
-                        <div class="filter-items">
-                            <label v-for="s in SCHOOLS" :key="s" class="checkbox-item">
-                                <input type="checkbox" :value="s" v-model="filters.school" />
-                                {{ s }}
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div class="filter-group">
-                    <div class="chips">
-                        <span
-                            v-for="val in filters.conference"
-                            :key="val"
-                            class="chip"
-                            @click="removeFilter('conference', val)"
-                        >{{ val }} ×</span>
-                    </div>
-                    <label>Conference</label>
-                    <div class="filter-list" :class="{open: isFilterOpen.conference}">
-                        <label class="checkbox-item filter-name" @click="toggleFilter('conference')">
-                            Conference
-                            <i class="fa fa-chevron-down" aria-hidden="true"></i>
-                        </label>
-                        <div class="filter-items">
-                            <label v-for="c in CONFERENCES" :key="c" class="checkbox-item">
-                                <input type="checkbox" :value="c" v-model="filters.conference" />
-                                {{ c }}
-                            </label>
-                        </div>
-                    </div>
-                </div>
-                <div class="filter-group">
-                    <div class="chips">
-                        <span
-                            v-for="range in formatYearChips(filters.year)"
-                            :key="range"
-                            class="chip"
-                            @click="removeYearRange(range)"
-                        >{{ range }} ×</span>
-                    </div>
-                    <label>Year</label>
-                    <div class="filter-list" :class="{open: isFilterOpen.year}">
-                        <label class="checkbox-item filter-name" @click="toggleFilter('year')">
-                            Year
-                            <i class="fa fa-chevron-down" aria-hidden="true"></i>
-                        </label>
-                        <div class="filter-items">
-                            <label v-for="y in YEARS" :key="y" class="checkbox-item">
-                                <input type="checkbox" :value="y" v-model="filters.year" />
-                                {{ y }}
+                            <label v-for="opt in f.options" :key="opt" class="checkbox-item">
+                                <input type="checkbox" :value="opt" v-model="filters[f.key]" />
+                                {{ opt }}
                             </label>
                         </div>
                     </div>
