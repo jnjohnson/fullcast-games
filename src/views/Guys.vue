@@ -42,6 +42,7 @@
     const player = ref(null);
     const statsData = ref(null);
     const loading = ref(false);
+    const buttonText = ref('Remember A Guy');
     const statsLoading = ref(false);
     const error = ref(null);
     const videos = ref(null);
@@ -54,16 +55,19 @@
         if (!id) return;
 
         loading.value = true;
+        buttonText.value = 'Loading...';
         const res = await fetch(`/api/guys/player?playerId=${id}`);
         if (!res.ok) {
             error.value = 'Hmm, we can\'t find this player. Check back later!';
             loading.value = false;
+            buttonText.value = 'Remember Someone Else';
             return;
         }
         const data = await res.json();
         player.value = data.player;
         statsData.value = data.stats;
         loading.value = false;
+        buttonText.value = 'Remember Someone Else';
         fetchVideos(data.player);
     });
 
@@ -72,6 +76,7 @@
         error.value = null;
         player.value = null;
         statsData.value = null;
+        buttonText.value = 'Loading...';
 
         const params = new URLSearchParams();
         for (const [key, arr] of Object.entries(filters.value)) {
@@ -81,12 +86,14 @@
         if (!res.ok) {
             error.value = 'We can\'t remember a single guy right now. Check back later!';
             loading.value = false;
+            buttonText.value = 'Remember Someone Else';
             return;
         }
         const data = await res.json();
         player.value = data.player;
         statsData.value = data.stats;
         loading.value = false;
+        buttonText.value = 'Remember Someone Else';
         fetchVideos(data.player);
 
         router.replace({ query: { playerId: player.value.id } });
@@ -167,7 +174,7 @@
     <div class="guys">
         <RouterLink to="/" class="back-link">← Back</RouterLink>
 
-        <div v-if="!player" class="intro">
+        <div class="intro">
             <div class="filters">
                 <div v-for="f in FILTER_DEFS" :key="f.key" class="filter-group">
                     <div class="chips">
@@ -204,11 +211,11 @@
             </div>
             <p v-if="error" class="error-msg">{{ error }}</p>
             <button :class="{ loading }" :disabled="loading" @click="pickRandomPlayer">
-                {{ loading ? 'Loading...' : 'Remember A Guy' }}
+                {{ buttonText }}
             </button>
         </div>
 
-        <template v-else>
+        <template v-if="player">
             <div class="player-card">
                 <h2>{{ player.firstName }} {{ player.lastName }}</h2>
                 <div class="meta">
@@ -279,12 +286,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <div class="intro">
-                    <button :class="{ loading }" :disabled="loading" @click="pickRandomPlayer">
-                        {{ loading ? 'Loading...' : 'Remember Someone Else' }}
-                    </button>
                 </div>
             </template>
         </template>
