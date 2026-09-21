@@ -188,7 +188,6 @@
                             >{{ val }} ×</span>
                         </template>
                     </div>
-                    <label>{{ f.label }}</label>
                     <div class="filter-list" :class="{ open: isFilterOpen[f.key] }">
                         <label class="checkbox-item filter-name" @click="toggleFilter(f.key)">
                             {{ f.label }}
