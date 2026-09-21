@@ -280,6 +280,10 @@
         align-items: center;
         gap: 50px;
         padding-bottom: 60px;
+
+        @media screen and (max-width: 700px) {
+            gap: 30px;
+        }
     }
 
     .back-link {
@@ -317,6 +321,7 @@
     
         .filter-group {
             flex: 1;
+            height: 43px;
             min-width: 120px;
             position: relative;
         }
@@ -326,7 +331,7 @@
             border: 1px solid base.$ptku-blue;
             border-radius: 6px;
             position: absolute;
-            top: calc(100% - 40px);
+            top: 0;
             width: 100%;
     
             &:focus-within {
@@ -344,9 +349,12 @@
             }
     
             .filter-items {
+                background: base.$color-background;
                 height: 0px;
                 overflow-y: scroll;
+                position: relative;
                 transition: height 0.3s;
+                z-index: 1;
             }
         }
     
@@ -387,7 +395,15 @@
                 }
             }
         }
-    
+        
+        @media screen and (max-width: 700px) {
+            .filters {
+                flex-direction: column;
+            }
+            .filter-group {
+                flex: auto;
+            }
+        }
     }
 
     .error-msg {
