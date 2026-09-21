@@ -57,13 +57,14 @@
         loading.value = true;
         buttonText.value = 'Loading...';
         const res = await fetch(`/api/guys/player?playerId=${id}`);
+        const data = await res.json();
+
         if (!res.ok) {
             error.value = 'Hmm, we can\'t find this player. Check back later!';
             loading.value = false;
             buttonText.value = 'Remember Someone Else';
             return;
         }
-        const data = await res.json();
         player.value = data.player;
         statsData.value = data.stats;
         loading.value = false;
@@ -83,13 +84,14 @@
             for (const val of arr) params.append(key, val);
         }
         const res = await fetch(`/api/guys/random-player?${params}`);
+        const data = await res.json();
+        
         if (!res.ok) {
-            error.value = 'We can\'t remember a single guy right now. Check back later!';
+            error.value = data.error;
             loading.value = false;
             buttonText.value = 'Remember Someone Else';
             return;
         }
-        const data = await res.json();
         player.value = data.player;
         statsData.value = data.stats;
         loading.value = false;
