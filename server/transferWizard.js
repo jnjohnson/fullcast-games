@@ -3,7 +3,9 @@ import { kvGet, kvPut } from './kv.js';
 const p4_schools = ["Alabama","Arizona","Arizona State","Arkansas","Auburn","Baylor","Boston College","BYU","California","Cincinnati","Clemson","Colorado","Duke","Florida","Florida State","Georgia","Georgia Tech","Houston","Illinois","Indiana","Iowa","Iowa State","Kansas","Kansas State","Kentucky","Louisville","LSU","Maryland","Miami","Michigan","Michigan State","Minnesota","Mississippi State","Missouri","NC State","Nebraska","North Carolina","Northwestern","Ohio State","Oklahoma","Oklahoma State","Ole Miss","Oregon","Penn State","Pittsburgh","Purdue","Rutgers","SMU","South Carolina","Stanford","Syracuse","TCU","Tennessee","Texas","Texas A&M","Texas Tech","UCF","UCLA","USC","Utah","Vanderbilt","Virginia","Virginia Tech","Wake Forest","Washington","West Virginia","Wisconsin"];
 const p4_conferences = ["ACC", "Big Ten", "Big 12", "SEC"];
 
-// TODO: Isaiah Johnson (CB) has a crazy looking transfer history. Investigate what's happening there.
+// TODO
+// - Isaiah Johnson (CB) has a crazy looking transfer history. Investigate what's happening there.
+// - Investigate replacing current randomization scheme for random creating a offset and limit of 4
 
 // Returns an array of size [size] of elements from the input array
 function getRandIndicies(arr, size) {
