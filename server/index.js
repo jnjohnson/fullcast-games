@@ -11,7 +11,7 @@ export default {
 		} else if (pathname === "/api/transfer-wizard/submit"){
             return checkAnswer(request, env);
         } else if (pathname === "/api/guys/random-player") {
-            return getRandomPlayer(env);
+            return getRandomPlayer(request, env);
         } else if (pathname === "/api/guys/player") {
             return getPlayerById(request, env);
         } else if (pathname === "/api/guys/player-stats") {

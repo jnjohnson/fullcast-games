@@ -41,28 +41,52 @@ const ATHLETE_FIELDS = `
 //      }]
 //  }
 // }
-export async function getRandomPlayer(env) {
+export async function getRandomPlayer(request, env) {
+    const params = new URL(request.url).searchParams;
+    const filters = {
+        position:   params.getAll('position'),
+        school:     params.getAll('school'),
+        conference: params.getAll('conference'),
+        year:       params.getAll('year').map(Number).filter(Boolean),
+    }
     let stats = {};
     let player = {};
 
+    const where = {};
+    if (filters.position?.length) {
+        where.position = { abbreviation: { _in: filters.position } };
+    }
+    if (filters.school?.length || filters.conference?.length || filters.year?.length) {
+        const teamWhere = {};
+        if (filters.school?.length)     teamWhere.team = { school: { _in: filters.school } };
+        if (filters.conference?.length) teamWhere.team = { ...teamWhere.team, conference: { name: { _in: filters.conference } } };
+        if (filters.year?.length)       teamWhere.startYear = { _in: filters.year };
+        where.athleteTeams = teamWhere;
+    }
+
+    const hasWhere = Object.keys(where).length > 0;
     const countData = await cfbdGql(
-        `query { athleteAggregate { aggregate { count } } }`,
-        {},
+        hasWhere
+            ? `query($where: AthleteBoolExp) { athleteAggregate(where: $where) { aggregate { count } } }`
+            : `query { athleteAggregate { aggregate { count } } }`,
+        hasWhere ? { where } : {},
         env
     );
     const cnt = countData.athleteAggregate.aggregate.count;
 
     if (cnt === 0) {
-        return new Response(JSON.stringify({ error: 'No players found' }), { status: 404 });
+        return new Response(JSON.stringify({ error: 'No players match these filters' }), { status: 404 });
     }
 
     while (Object.keys(stats).length === 0) {
         const offset = Math.floor(Math.random() * cnt);
-        const data = await cfbdGql(`
-            query($offset: Int!) {
-                athlete(limit: 1, offset: $offset) { ${ATHLETE_FIELDS} }
-            }
-        `, { offset }, env);
+        const data = await cfbdGql(
+            hasWhere
+                ? `query($offset: Int!, $where: AthleteBoolExp) { athlete(limit: 1, offset: $offset, where: $where) { ${ATHLETE_FIELDS} } }`
+                : `query($offset: Int!) { athlete(limit: 1, offset: $offset) { ${ATHLETE_FIELDS} } }`,
+            hasWhere ? { offset, where } : { offset },
+            env
+        );
         player = data.athlete[0];
 
         if (!player) {
@@ -223,16 +247,23 @@ export async function getPlayerStats(playerId, env) {
                 season.stats['AVG'] = (yards / attempts).toFixed(1);
             }
         }
-        if (statMap[statType].statNames.includes('FG')) {
+        if (statType === 'kicking') {
             for (const season of statMap[statType].seasons) {
-                const split = season.stats['FG'].split('/');
-                season.stats['FG %'] = ((Number(split[0]) / Number(split[1])) * 100).toFixed(1);
+                const FGsplit = season.stats['FG'].split('/');
+                const XPsplit = season.stats['XP'].split('/');
+                
+                season.stats['FG %'] = ((Number(FGsplit[0]) / Number(FGsplit[1])) * 100).toFixed(1);
+                season.stats['FG %'] = isNaN(season.stats['FG %']) ? 'N/A' : season.stats['FG %'];
+                
+                season.stats['XP %'] = ((Number(XPsplit[0]) / Number(XPsplit[1])) * 100).toFixed(1);
+                season.stats['XP %'] = isNaN(season.stats['XP %']) ? 'N/A' : season.stats['XP %'];
             }
-        }
-        if (statMap[statType].statNames.includes('XP')) {
+        } else if (statType === 'passing') {
             for (const season of statMap[statType].seasons) {
-                const split = season.stats['XP'].split('/');
-                season.stats['XP %'] = ((Number(split[0]) / Number(split[1])) * 100).toFixed(1);
+                const s = season.stats;
+                const catches = Number(season.stats['C/ATT'].split('/')[0]);
+                const att = Number(season.stats['C/ATT'].split('/')[1]);
+                s['QBR'] = (((8.4*s['YDS']) + (330*s['TD']) + (100*catches) - (200*s['INT'])) / att).toFixed(1);
             }
         }
     }
