@@ -1,5 +1,5 @@
 <script setup>
-    import { ref, onMounted } from 'vue';
+    import { ref, onMounted, onUnmounted } from 'vue';
     import { useRoute, useRouter } from 'vue-router';
 
     const POSITIONS   = ['QB','RB','FB','WR','TE','OT','OG','C','DE','DT','LB','CB','S','K','P','LS'];
@@ -51,6 +51,18 @@
     const videosLoading = ref(false);
     const isFilterOpen = ref({position: false, school: false, conference: false, year: false});
     const filters = ref({ position: [], school: [], conference: [], year: [] });
+    const groupRefs = ref({});
+
+    function onDocClick(e) {
+        for (const key of Object.keys(isFilterOpen.value)) {
+            if (isFilterOpen.value[key] && !groupRefs.value[key]?.contains(e.target)) {
+                isFilterOpen.value[key] = false;
+            }
+        }
+    }
+
+    onMounted(() => { document.addEventListener('click', onDocClick); });
+    onUnmounted(() => { document.removeEventListener('click', onDocClick); });
 
     onMounted(async () => {
         const id = parseInt(route.query.playerId, 10);
@@ -182,7 +194,7 @@
 
         <div class="intro">
             <div class="filters">
-                <div v-for="f in FILTER_DEFS" :key="f.key" class="filter-group" :class="{ disabled: isFilterDisabled(f) }">
+                <div v-for="f in FILTER_DEFS" :key="f.key" class="filter-group" :class="{ disabled: isFilterDisabled(f) }" :ref="el => { if (el) groupRefs[f.key] = el }">
                     <div class="filter-list" :class="{ open: isFilterOpen[f.key] }">
                         <label class="checkbox-item filter-name" @click="!isFilterDisabled(f) && toggleFilter(f.key)">
                             {{ filterLabel(f) }}
@@ -198,9 +210,12 @@
                 </div>
             </div>
             <p v-if="error" class="error-msg">{{ error }}</p>
-            <button :class="{ loading }" :disabled="loading" @click="pickRandomPlayer">
-                {{ buttonText }}
-            </button>
+            <div class="button-row">
+                <button :class="{ loading }" :disabled="loading" @click="pickRandomPlayer">
+                    {{ buttonText }}
+                </button>
+                <button class="button-alternate" @click="reset">Reset</button>
+            </div>
         </div>
 
         <template v-if="player">
@@ -422,6 +437,11 @@
                 flex: auto;
             }
         }
+    }
+
+    .button-row {
+        display: flex;
+        gap: 12px;
     }
 
     .error-msg {
