@@ -120,6 +120,7 @@
         statsData.value = null;
         error.value = null;
         videos.value = null;
+        buttonText.value = 'Remember A Guy';
         filters.value = { position: [], school: [], conference: [], year: [] };
         router.replace({ query: {} });
     }
