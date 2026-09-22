@@ -27,7 +27,23 @@ button {
     font-family: inherit;
 }
 .button-alternate {
-    
+    border-color: base.$ptku-pink;
+    color: base.$ptku-pink;
+
+    &:hover {
+        background-color: base.$ptku-pink !important;
+        color: #222222;
+    }
+}
+.button-alternate.reverse {
+    border-color: base.$ptku-pink;
+    background-color: base.$ptku-pink;
+    color: #222222;
+
+    &:hover {
+        background-color: transparent !important;
+        color: base.$ptku-pink;
+    }
 }
 
 @media (hover: hover) {
