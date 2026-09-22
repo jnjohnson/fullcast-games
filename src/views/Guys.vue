@@ -215,7 +215,7 @@
                 <button :class="{ loading }" :disabled="loading" @click="pickRandomPlayer">
                     {{ buttonText }}
                 </button>
-                <button class="button-alternate" @click="reset">Reset</button>
+                <button class="button-alternate reverse" @click="reset">Reset</button>
             </div>
         </div>
 
