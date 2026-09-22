@@ -340,7 +340,10 @@
                 border-color: base.$ptku-pink;
             }
             &.open {
+                z-index: 1;
+                
                 .filter-items {
+                    background: transparent;
                     height: 240px;
                 }
                 .checkbox-item.filter-name {
