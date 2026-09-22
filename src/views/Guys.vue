@@ -3,30 +3,32 @@
     import { useRoute, useRouter } from 'vue-router';
 
     const POSITIONS   = ['QB','RB','FB','WR','TE','OT','OG','C','DE','DT','LB','CB','S','K','P','LS'];
-    const CONFERENCES = ['ACC','Big 12','Big Ten','C-USA','Ind','MAC','MWC','SEC','Sun Belt'];
+    const CONFERENCES = ['AAC','ACC','Big 12','Big Ten','C-USA','Ind','MAC','MWC','PAC-12','SEC','Sun Belt'];
     const YEARS       = Array.from({ length: 24 }, (_, i) => 2026 - i);
     const SCHOOLS = [
-        'Air Force','Akron','Alabama','Appalachian State','Arizona','Arizona State',
-        'Arkansas','Arkansas State','Army','Auburn','Ball State','Baylor','Boise State',
-        'Boston College','Bowling Green','Buffalo','BYU','California','Central Michigan',
-        'Charlotte','Cincinnati','Clemson','Coastal Carolina','Colorado','Colorado State',
-        'Connecticut','Duke','East Carolina','Eastern Michigan','Florida','Florida Atlantic',
-        'Florida International','Florida State','Fresno State','Georgia','Georgia Southern',
-        'Georgia State','Georgia Tech','Hawaii','Houston','Illinois','Indiana',
+        'Air Force','Akron','Alabama','App State','Arizona','Arizona State',
+        'Arkansas','Arkansas State','Army','Auburn','Ball State','Baylor',
+        'Boise State','Boston College','Bowling Green','Buffalo','BYU','California',
+        'Central Michigan','Charlotte','Cincinnati','Clemson','Coastal Carolina','Colorado',
+        'Colorado State','Delaware','Duke','East Carolina','Eastern Michigan','Florida',
+        'Florida Atlantic','Florida International','Florida State','Fresno State','Georgia','Georgia Southern',
+        'Georgia State','Georgia Tech',"Hawai'i",'Houston','Illinois','Indiana',
         'Iowa','Iowa State','Jacksonville State','James Madison','Kansas','Kansas State',
-        'Kent State','Kentucky','Liberty','Louisiana','Louisiana Monroe','Louisiana Tech',
-        'Louisville','LSU','Marshall','Maryland','Massachusetts','Memphis','Miami',
-        'Miami (OH)','Michigan','Michigan State','Middle Tennessee','Minnesota','Mississippi State',
-        'Missouri','Navy','NC State','Nebraska','Nevada','New Mexico','New Mexico State',
-        'North Carolina','North Texas','Northern Illinois','Northwestern','Notre Dame',
-        'Ohio','Ohio State','Oklahoma','Oklahoma State','Old Dominion','Ole Miss',
-        'Oregon','Oregon State','Penn State','Pittsburgh','Purdue','Rice','Rutgers',
-        'Sam Houston','San Diego State','San Jose State','SMU','South Alabama',
-        'South Carolina','South Florida','Southern Miss','Stanford','Syracuse',
-        'TCU','Temple','Tennessee','Texas','Texas A&M','Texas State','Texas Tech',
-        'Toledo','Troy','Tulane','Tulsa','UAB','UCF','UCLA','UNLV','USC','Utah',
-        'Utah State','UTEP','UTSA','Vanderbilt','Virginia','Virginia Tech','Wake Forest',
-        'Washington','Washington State','Western Kentucky','Western Michigan','Wisconsin','Wyoming',
+        'Kennesaw State','Kent State','Kentucky','Liberty','Louisiana','Louisiana Tech',
+        'Louisville','LSU','Marshall','Maryland','Massachusetts','Memphis',
+        'Miami','Miami (OH)','Michigan','Michigan State','Middle Tennessee','Minnesota',
+        'Mississippi State','Missouri','Missouri State','Navy','NC State','Nebraska',
+        'Nevada','New Mexico','New Mexico State','North Carolina','North Dakota State','Northern Illinois',
+        'North Texas','Northwestern','Notre Dame','Ohio','Ohio State','Oklahoma','Oklahoma State',
+        'Old Dominion','Ole Miss','Oregon','Oregon State','Penn State','Pittsburgh',
+        'Purdue','Rice','Rutgers','Sacramento State','Sam Houston','San Diego State',
+        'San José State','SMU','South Alabama','South Carolina','Southern Miss','South Florida',
+        'Stanford','Syracuse','TCU','Temple','Tennessee','Texas',
+        'Texas A&M','Texas State','Texas Tech','Toledo','Troy','Tulane',
+        'Tulsa','UAB','UCF','UCLA','UConn','UL Monroe','UNLV',
+        'USC','Utah','Utah State','UTEP','UTSA','Vanderbilt',
+        'Virginia','Virginia Tech','Wake Forest','Washington','Washington State','Western Kentucky',
+        'Western Michigan','West Virginia','Wisconsin','Wyoming'
     ];
 
     const FILTER_DEFS = [
@@ -160,6 +162,12 @@
         }
     }
 
+    function isFilterDisabled(f) {
+        if (f.key === 'conference') return filters.value.school.length > 0;
+        if (f.key === 'school')     return filters.value.conference.length > 0;
+        return false;
+    }
+
     function filterLabel(f) {
         const selected = f.isYear
             ? formatYearChips(filters.value.year)
@@ -174,15 +182,15 @@
 
         <div class="intro">
             <div class="filters">
-                <div v-for="f in FILTER_DEFS" :key="f.key" class="filter-group">
+                <div v-for="f in FILTER_DEFS" :key="f.key" class="filter-group" :class="{ disabled: isFilterDisabled(f) }">
                     <div class="filter-list" :class="{ open: isFilterOpen[f.key] }">
-                        <label class="checkbox-item filter-name" @click="toggleFilter(f.key)">
+                        <label class="checkbox-item filter-name" @click="!isFilterDisabled(f) && toggleFilter(f.key)">
                             {{ filterLabel(f) }}
                             <i class="fa fa-chevron-down" aria-hidden="true"></i>
                         </label>
                         <div class="filter-items">
                             <label v-for="opt in f.options" :key="opt" class="checkbox-item">
-                                <input type="checkbox" :value="opt" v-model="filters[f.key]" />
+                                <input type="checkbox" :value="opt" v-model="filters[f.key]" :disabled="isFilterDisabled(f)" />
                                 {{ opt }}
                             </label>
                         </div>
@@ -326,8 +334,13 @@
             height: 43px;
             min-width: 120px;
             position: relative;
+
+            &.disabled {
+                opacity: 0.35;
+                pointer-events: none;
+            }
         }
-    
+
         .filter-list {
             background: base.$color-background;
             border: 1px solid base.$ptku-blue;
