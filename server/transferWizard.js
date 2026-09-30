@@ -67,7 +67,7 @@ async function fetchRandomTransfers(difficulty, env) {
 //   3. toTeam is null, other rows exist → null row skipped, chain continues
 //   4. toTeam is null on the only row → returns length-1 array (unplayable, caller skips)
 //   5. fromTeam[N] ≠ toTeam[N-1] (gap) → fromTeam[N] inserted as an intermediate stop
-export function buildTransferChain(rows) {
+function buildTransferChain(rows) {
     const stops = [];
     let lastSchool = null;
     for (let i = 0; i < rows.length; i++) {
