@@ -158,7 +158,12 @@
         }
 
         .loading {
+            color: base.$ptku-blue;
+            font-family: inter;
+            font-size: 20px;
+            font-weight: 600;
             opacity: 0.6;
+            text-transform: uppercase;
         }
 
         .difficulty-buttons {
@@ -186,8 +191,6 @@
 
                 .diff-desc {
                     font-size: 0.8rem;
-                    opacity: 0.7;
-                    text-transform: none;
                 }
 
                 &::after {
@@ -245,6 +248,8 @@
             border: 2px solid base.$ptku-blue;
             border-radius: 15px;
             color: base.$ptku-blue;
+            font-family: base.$inter;
+            font-weight: 700;
             min-width: 120px;
             padding: 12px 16px;
             position: relative;
