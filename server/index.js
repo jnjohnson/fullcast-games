@@ -14,8 +14,6 @@ export default {
             return getRandomPlayer(request, env);
         } else if (pathname === "/api/guys/player") {
             return getPlayerById(request, env);
-        } else if (pathname === "/api/guys/player-stats") {
-            return getPlayerStats(request, env);
         } else if (pathname === "/api/guys/videos") {
             return getPlayerHighlights(request, env);
         } else {
