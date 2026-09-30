@@ -30,6 +30,10 @@ header {
     line-height: 1.5;
     max-height: 100vh;
     
+    p {
+        font-size: 700;
+        font-family: base.$inter;
+    }
     .logo {
         border-radius: 100%;
         display: block;
@@ -46,6 +50,11 @@ cite {
 
     a {
         color: base.$ptku-pink;
+        text-decoration: none;
+
+        &:hover {
+            color: base.$ptku-blue;
+        }
     }
 }
 
