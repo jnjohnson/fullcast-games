@@ -7,6 +7,7 @@ const ATHLETE_FIELDS = `
     id
     firstName
     lastName
+    jersey
     position { abbreviation }
     athleteTeams(orderBy: { startYear: ASC }) {
         startYear
@@ -264,7 +265,7 @@ export async function getPlayerStats(playerId, env) {
                 season.stats['XP %'] = ((Number(XPsplit[0]) / Number(XPsplit[1])) * 100).toFixed(1);
                 season.stats['XP %'] = isNaN(season.stats['XP %']) ? 'N/A' : season.stats['XP %'];
             }
-        } else if (statType === 'passing') {
+        } else if (statType === 'passing' && statMap[statType].statNames.includes('QBR')) {
             for (const season of statMap[statType].seasons) {
                 const s = season.stats;
                 const catches = Number(season.stats['C/ATT'].split('/')[0]);
