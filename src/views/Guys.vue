@@ -223,8 +223,9 @@
             <div class="player-card">
                 <h2>{{ player.firstName }} {{ player.lastName }}</h2>
                 <div class="meta">
-                    <span class="position">{{ player.position?.abbreviation || 'N/A' }}</span>
-                    <span class="schools">{{ uniqueSchools(player.athleteTeams) }}</span>
+                    <span v-if="player.jersey">#{{ player.jersey }}</span>
+                    <span>{{ player.position?.abbreviation || 'N/A' }}</span>
+                    <span>{{ uniqueSchools(player.athleteTeams) }}</span>
                 </div>
             </div>
 
@@ -347,7 +348,9 @@
     
         .filter-group {
             flex: 1;
+            font-weight: 700;
             height: 43px;
+            letter-spacing: 1.4px;
             min-width: 120px;
             position: relative;
 
@@ -442,7 +445,9 @@
 
     .button-row {
         display: flex;
+        font-weight: 700;
         gap: 12px;
+        letter-spacing: 1.4px;
     }
 
     .error-msg {
@@ -451,15 +456,16 @@
     }
 
     .player-card {
-        display: flex;
         align-items: center;
-        justify-content: space-between;
         border: 2px solid base.$ptku-blue;
         border-radius: 12px;
+        display: flex;
+        flex-wrap: wrap;
         gap: 30px;
+        justify-content: space-between;
+        max-width: 700px;
         padding: 20px 28px;
         width: 100%;
-        max-width: 700px;
 
         h2 {
             font-size: 1.6rem;
@@ -467,26 +473,37 @@
         }
 
         .meta {
-            display: flex;
-            gap: 16px;
             align-items: center;
-        }
-
-        .position {
-            background: base.$ptku-blue;
-            border-radius: 6px;
-            color: base.$color-background;
+            display: flex;
+            font-family: base.$inter;
             font-size: 0.8rem;
-            font-weight: bold;
+            font-weight: 900;
+            gap: 16px;
             letter-spacing: 0.05em;
-            padding: 3px 10px;
             text-transform: uppercase;
+            white-space: nowrap;
+
+            span {
+                position: relative;
+
+                &::after {
+                    content: '·';
+                    position: absolute;
+                    right: -11px;
+                    font-size: 1.1rem;
+                    top: 50%;
+                    transform: translateY(-50%);
+                }
+                &:last-of-type::after {
+                    content: none;
+                }
+            }
         }
 
         .schools {
             color: base.$color-text;
             font-size: 0.9rem;
-            opacity: 0.7;
+            opacity: 0.9;
         }
     }
 
@@ -542,7 +559,11 @@
                         text-align: left;
                     }
                 }
-
+                td {
+                    font-weight: 700;
+                    letter-spacing: 0.7px;
+                    text-transform: uppercase;
+                }
                 th {
                     border-bottom: 1px solid base.$ptku-pink;
                     color: base.$color-text;
