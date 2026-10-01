@@ -105,7 +105,7 @@
         <template v-else>
             <h2>THE TRANSFER WIZARD</h2>
             <p>Choose the correct player based on their trajectory through the transfer portal</p>
-            <button class="change-difficulty" @click="changeDifficulty">Change Difficulty</button>
+            <button class="button-alternate" @click="changeDifficulty">Change Difficulty</button>
             <div class="question">
                 <div class="transfer" v-for="destination in question">
                     <span class="year" v-if="destination.season">
@@ -211,28 +211,16 @@
         }
     }
 
-    .change-difficulty {
-        background: none;
-        border: none;
-        color: base.$ptku-blue;
-        cursor: pointer;
-        font-size: 0.85rem;
-        margin-top: 8px;
-        opacity: 0.8;
-        padding: 4px 0;
-        text-decoration: underline;
-        text-underline-offset: 3px;
-
-        &:hover {
-            opacity: 1;
-        }
+    .button-alternate {
+        padding: 15px;
+        margin-top: 20px;
     }
 
     .question {
         display: flex;
         justify-content: center;
         gap: 70px;
-        margin-top: 25px;
+        margin-top: 50px;
         position: relative;
 
         

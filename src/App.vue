@@ -5,12 +5,14 @@ const route = useRoute()
 </script>
 
 <template>
-    <header>
+    <header :class="{ 'game-page': route.path !== '/' }">
         <RouterLink to="/"><img alt="Shutdown Fullcast moon snake logo" class="logo" src="@/assets/fullcast-logo.jpg"/></RouterLink>
-        <div>
+        <div v-if="route.path == '/'">
             <h1>Fullcast Games</h1>
             <p>The only website featuring bits from the internet's only college football podcast</p>
-            <RouterLink v-if="route.path !== '/'" to="/" class="back-link"><span class="arrow" aria-hidden="true">←</span> All Games</RouterLink>
+        </div>
+        <div v-else>
+            <RouterLink to="/" class="back-link"><span class="arrow" aria-hidden="true">←</span> All Games</RouterLink>
         </div>
     </header>
     <main>
@@ -33,6 +35,12 @@ header {
     line-height: 1.5;
     margin-bottom: 30px;
     max-height: 100vh;
+
+    &.game-page {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 20px;
+    }
     
     p {
         font-weight: 700;
@@ -50,7 +58,6 @@ header {
         font-size: 0.8rem;
         font-weight: 600;
         letter-spacing: 1.2px;
-        margin-top: 8px;
         opacity: 0.8;
         text-decoration: none;
         text-transform: uppercase;
@@ -73,6 +80,7 @@ header {
     }
 
     @media screen and (max-width: 600px) {
+        align-items: flex-start;
         flex-direction: column;
         gap: 10px;
 
@@ -81,11 +89,6 @@ header {
         }
         p, a {
             font-size: 0.8rem;
-        }
-        div {
-            .back-link {
-                margin-top: 15px;
-            }
         }
         .logo {
             width: 80px;
@@ -98,6 +101,14 @@ main {
 
     @media screen and (max-width: 600px) {
         min-height: calc(100vh - 338px);
+    }
+}
+
+header.game-page + main {
+    min-height: calc(100vh - 345px);
+
+    @media screen and (max-width: 600px) {
+        min-height: calc(100vh - 298px);
     }
 }
 cite {
