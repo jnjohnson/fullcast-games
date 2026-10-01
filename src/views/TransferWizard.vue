@@ -77,8 +77,6 @@
 </script>
 <template>
     <div class="transfer-wizard">
-        <RouterLink to="/" class="back-link">← Back</RouterLink>
-
         <!-- Difficulty selection screen -->
         <div v-if="!question" class="difficulty-select">
             <h2>SELECT DIFFICULTY</h2>
@@ -139,12 +137,6 @@
 </template>
 <style scoped lang="scss">
     @use '../assets/base';
-
-    .back-link {
-        color: base.$ptku-blue;
-        text-decoration: underline;
-        text-underline-offset: 3px;
-    }
 
     .difficulty-select {
         align-items: center;

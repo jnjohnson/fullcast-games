@@ -191,8 +191,6 @@
 
 <template>
     <div class="guys">
-        <RouterLink to="/" class="back-link">← Back</RouterLink>
-
         <div class="intro">
             <div class="filters">
                 <div v-for="f in FILTER_DEFS" :key="f.key" class="filter-group" :class="{ disabled: isFilterDisabled(f) }" :ref="el => { if (el) groupRefs[f.key] = el }">
@@ -306,18 +304,6 @@
         flex-direction: column;
         align-items: center;
         gap: 50px;
-        padding-bottom: 60px;
-
-        @media screen and (max-width: 700px) {
-            gap: 30px;
-        }
-    }
-
-    .back-link {
-        align-self: flex-start;
-        color: base.$ptku-blue;
-        text-decoration: underline;
-        text-underline-offset: 3px;
     }
 
     .intro {
