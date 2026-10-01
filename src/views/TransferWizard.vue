@@ -306,7 +306,6 @@
             cursor: pointer;
             line-height: 1.7;
             position: relative;
-            text-transform: uppercase;
             width: 100%;
 
             &.disabled {
