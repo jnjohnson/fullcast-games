@@ -97,20 +97,9 @@ header {
 }
 
 main {
-    min-height: calc(100vh - 303px);
-
-    @media screen and (max-width: 600px) {
-        min-height: calc(100vh - 338px);
-    }
+    flex: 1;
 }
 
-header.game-page + main {
-    min-height: calc(100vh - 345px);
-
-    @media screen and (max-width: 600px) {
-        min-height: calc(100vh - 298px);
-    }
-}
 cite {
     display: block;
     margin-top: 60px;
