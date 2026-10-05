@@ -1,34 +1,40 @@
 <template>
-    <main>
-        <section>
+    <div class="home">
+        <RouterLink to="/transfer-wizard" class="button">
             <h2>Transfer Wizard</h2>
             <p>Test your knowledge of the Wizard's spells and incantations.</p>
-            <RouterLink to="/transfer-wizard" class="button">Transfer Wizard</RouterLink>
-        </section>
-        <section>
+        </RouterLink>
+        <RouterLink to="/guys" class="button">
             <h2>Remember Some Guys</h2>
             <p>Sit back and be reminded of Some Guys of yore.</p>
-            <RouterLink to="/guys" class="button">Remember Some Guys</RouterLink>
-        </section>
-    </main>
+        </RouterLink>
+    </div>
 </template>
 
 <style scoped lang="scss">
     @use '../assets/base';
 
-    main {
-        align-items: center;
+    .home {
         display: flex;
+        flex-flow: row wrap;
         justify-content: center;
-        flex-direction: column;
+        gap: 50px;
+        margin-top: 70px;
 
-        section {
+        a.button {
             align-items: center;
             display: flex;
             flex-direction: column;
             gap: 20px;
             text-align: center;
+            width: calc(50% - 25px);
 
+            &:hover {
+                p {
+                    color: #222222;
+                    opacity: 1;
+                }
+            }
             h2 {
                 font-size: 2.5rem;
                 margin: 0;
@@ -40,12 +46,7 @@
                 font-weight: 700;
                 margin: 0;
                 opacity: 0.8;
-            }
-
-            a {
-                font-size: 1.2rem;
-                margin-top: 10px;
-                min-width: 220px;
+                transition: all 0.4s;
             }
         }
     }
