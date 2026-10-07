@@ -4,6 +4,10 @@
             <h2>Transfer Wizard</h2>
             <p>Test your knowledge of the Wizard's spells and incantations.</p>
         </RouterLink>
+        <RouterLink to="/more-or-less" class="button">
+            <h2>More or Less</h2>
+            <p>Determine who had more and who had less</p>
+        </RouterLink>
         <RouterLink to="/guys" class="button">
             <h2>Remember Some Guys</h2>
             <p>Sit back and be reminded of Some Guys of yore.</p>
@@ -17,7 +21,6 @@
     .home {
         display: flex;
         flex-flow: row wrap;
-        justify-content: center;
         gap: 50px;
         margin-top: 70px;
 

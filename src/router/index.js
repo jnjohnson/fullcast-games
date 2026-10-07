@@ -22,6 +22,11 @@ const router = createRouter({
       name: 'guys',
       component: () => import('../views/Guys.vue'),
     },
+    {
+      path: '/more-or-less',
+      name: 'more-or-less',
+      component: () => import('../views/MoreOrLess.vue'),
+    },
   ],
 })
 

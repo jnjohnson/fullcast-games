@@ -1,5 +1,6 @@
 import { getPlayers, checkAnswer } from './transferWizard.js';
 import { getRandomPlayer, getPlayerById, getPlayerStats, getPlayerHighlights } from './guys.js';
+import { getQuestion, submitAnswer } from './moreOrLess.js';
 
 export default {
 	async fetch(request, env) {
@@ -16,6 +17,10 @@ export default {
             return getPlayerById(request, env);
         } else if (pathname === "/api/guys/videos") {
             return getPlayerHighlights(request, env);
+        } else if (pathname === "/api/more-or-less/question") {
+            return getQuestion(request, env);
+        } else if (pathname === "/api/more-or-less/answer" && request.method === "POST") {
+            return submitAnswer(request, env);
         } else {
             return new Response(null, { status: 404 });
         }

@@ -1,6 +1,6 @@
 import { cfbdGql } from './cfbd.js';
 import { kvGet, kvPut } from './kv.js';
-const p4_schools = ["Alabama","Arizona","Arizona State","Arkansas","Auburn","Baylor","Boston College","BYU","California","Cincinnati","Clemson","Colorado","Duke","Florida","Florida State","Georgia","Georgia Tech","Houston","Illinois","Indiana","Iowa","Iowa State","Kansas","Kansas State","Kentucky","Louisville","LSU","Maryland","Miami","Michigan","Michigan State","Minnesota","Mississippi State","Missouri","NC State","Nebraska","North Carolina","Northwestern","Ohio State","Oklahoma","Oklahoma State","Ole Miss","Oregon","Penn State","Pittsburgh","Purdue","Rutgers","SMU","South Carolina","Stanford","Syracuse","TCU","Tennessee","Texas","Texas A&M","Texas Tech","UCF","UCLA","USC","Utah","Vanderbilt","Virginia","Virginia Tech","Wake Forest","Washington","West Virginia","Wisconsin"];
+import { P4_SCHOOLS } from './constants.js';
 const p4_conferences = ["ACC", "Big Ten", "Big 12", "SEC"];
 
 // TODO
@@ -28,7 +28,7 @@ function getRandIndicies(arr, size) {
 // Fetches transfer records from CFBD GraphQL, filtered by difficulty.
 // Returns 4 randomly selected transfer records
 async function fetchRandomTransfers(difficulty, env) {
-    var randSchools = getRandIndicies(p4_schools, 10);
+    var randSchools = getRandIndicies(P4_SCHOOLS, 10);
 
     // Creates the 'where' object for the transfer query based on difficulty.
     // - 'easy': QB transferring to a P4 school
