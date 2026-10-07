@@ -44,7 +44,7 @@ const PLAYER_GROUPS = {
 };
 
 // Players show up twice as often as coaches or schools on a fresh run.
-const QUESTION_TYPES = ['coach', 'school'];
+const QUESTION_TYPES = ['player', 'player', 'coach', 'school'];
 
 // ─── Pure helpers ────────────────────────────────────────────────────────────
 
