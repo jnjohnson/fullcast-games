@@ -14,6 +14,10 @@ const DRAFT_SINCE = 2021;
 const MIN_COACH_SEASONS = 5;
 // How many random picks to try before giving up on finding a usable subject.
 const MAX_ATTEMPTS = 8;
+// KV lifetimes (seconds). The coach count only changes when a coach reaches MIN_COACH_SEASONS, and the
+// draft pools only change after each NFL draft, so both can be cached for a long time.
+const COACH_COUNT_TTL = 60 * 60 * 24 * 30; // ~30 days
+const DRAFT_POOL_TTL = 60 * 60 * 24 * 30;   // 30 days
 
 const COACH_SEASON_FILTER = {
     year: { _gte: RECORD_SINCE },
@@ -112,16 +116,30 @@ function toPublicQuestion(id, q) {
 
 // ─── CFBD fetchers ───────────────────────────────────────────────────────────
 
-// Picks `count` distinct random coaches with at least MIN_COACH_SEASONS FBS seasons since RECORD_SINCE,
-// skipping any id in `excludeIds`. Makes one count query, then one query per coach.
-// Returns subjects: [{ id, name, detail, value, display, record }].
-async function pickCoaches(count, excludeIds, env) {
-    const countData = await cfbdGql(
+// Returns how many coaches match COACH_FILTER. Cached in KV under `mol:coach-count` for COACH_COUNT_TTL.
+// A stale count is harmless: an offset past the end returns no coach, and pickCoaches retries.
+async function getCoachCount(env) {
+    const cacheKey = 'mol:coach-count';
+    const cached = await kvGet(cacheKey, env);
+    if (cached !== null) {
+        return cached;
+    }
+
+    const data = await cfbdGql(
         `query($where: CoachBoolExp) { coachAggregate(where: $where) { aggregate { count } } }`,
         { where: COACH_FILTER },
         env
     );
-    const total = countData.coachAggregate.aggregate.count;
+    const total = data.coachAggregate.aggregate.count;
+    await kvPut(cacheKey, total, env, COACH_COUNT_TTL);
+    return total;
+}
+
+// Picks `count` distinct random coaches with at least MIN_COACH_SEASONS FBS seasons since RECORD_SINCE,
+// skipping any id in `excludeIds`. Gets the (usually cached) coach count, then makes one query per coach.
+// Returns subjects: [{ id, name, detail, value, display, record }].
+async function pickCoaches(count, excludeIds, env) {
+    const total = await getCoachCount(env);
     const picked = [];
     const seen = new Set(excludeIds);
 
@@ -185,7 +203,7 @@ async function pickSchools(count, excludeIds, env) {
 }
 
 // Returns the draft pool for a position group: [{ id, name, detail }], one per drafted player
-// with a linked CFBD athlete record. Cached in KV under `mol:draft:<group>`.
+// with a linked CFBD athlete record. Cached in KV under `mol:draft:<group>` for DRAFT_POOL_TTL.
 async function getDraftPool(group, env) {
     const cacheKey = `mol:draft:${group}`;
     const cached = await kvGet(cacheKey, env);
@@ -211,7 +229,7 @@ async function getDraftPool(group, env) {
             name: `${pick.collegeAthleteRecord.firstName} ${pick.collegeAthleteRecord.lastName}`,
             detail: `${pick.position.abbreviation} · ${pick.collegeTeam?.school ?? 'N/A'}`,
         }));
-    await kvPut(cacheKey, pool, env);
+    await kvPut(cacheKey, pool, env, DRAFT_POOL_TTL);
     return pool;
 }
 

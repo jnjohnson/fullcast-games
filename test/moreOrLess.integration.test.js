@@ -52,8 +52,11 @@ function answerRequest(body) {
 
 beforeEach(async () => {
   vi.clearAllMocks();
-  // Draft pools are cached in KV; clear them so each test controls the cfbdGql call order.
-  await Promise.all(["qb", "rb", "wr"].map(group => env.CFBD_CACHE.delete(`mol:draft:${group}`)));
+  // The coach count and draft pools are cached in KV; clear them so each test controls the cfbdGql call order.
+  await Promise.all([
+    env.CFBD_CACHE.delete("mol:coach-count"),
+    ...["qb", "rb", "wr"].map(group => env.CFBD_CACHE.delete(`mol:draft:${group}`)),
+  ]);
 });
 
 describe("getQuestion", () => {
@@ -84,6 +87,25 @@ describe("getQuestion", () => {
     const cached = await env.CFBD_CACHE.get(`mol:q:${id}`, { type: "json" });
 
     expect(cached.b.value).toBe(128 / 175);
+  });
+
+  it("caches the coach count and skips the count query while it's cached", async () => {
+    cfbd.cfbdGql
+      .mockResolvedValueOnce(COACH_COUNT)
+      .mockResolvedValueOnce(coachRow(1, "Dabo", "Swinney", "Clemson", 187, 53))
+      .mockResolvedValueOnce(coachRow(2, "Jimbo", "Fisher", "Texas A&M", 128, 47))
+      // Second question: no count query, straight to the two coach queries
+      .mockResolvedValueOnce(coachRow(3, "Nick", "Saban", "Alabama", 292, 64))
+      .mockResolvedValueOnce(coachRow(4, "Kirby", "Smart", "Georgia", 115, 22));
+
+    await getQuestion(new Request("http://fake/api/more-or-less/question?type=coach"), mockEnv());
+    expect(await env.CFBD_CACHE.get("mol:coach-count", { type: "json" })).toBe(300);
+
+    const res = await getQuestion(new Request("http://fake/api/more-or-less/question?type=coach"), mockEnv());
+    const body = await res.json();
+
+    expect(cfbd.cfbdGql).toHaveBeenCalledTimes(5);
+    expect([body.a.name, body.b.name]).toEqual(["Nick Saban", "Kirby Smart"]);
   });
 
   it("re-rolls a coach that was already picked", async () => {
@@ -135,6 +157,29 @@ describe("getQuestion", () => {
     expect(body.a.display).toBe("150");
     expect([body.a.name, body.b.name].sort()).toEqual(["Bryce Young", "Trevor Lawrence"]);
     expect(body.b.value).toBeUndefined();
+  });
+
+  it("reuses a cached draft pool without querying CFBD", async () => {
+    await env.CFBD_CACHE.put("mol:draft:qb", JSON.stringify([
+      { id: 11, name: "Bryce Young", detail: "QB · Alabama" },
+      { id: 12, name: "Trevor Lawrence", detail: "QB · Clemson" },
+    ]));
+    await env.CFBD_CACHE.put("mol:draft:rb", JSON.stringify([
+      { id: 21, name: "Bijan Robinson", detail: "RB · Texas" },
+      { id: 22, name: "Jahmyr Gibbs", detail: "RB · Alabama" },
+    ]));
+    await env.CFBD_CACHE.put("mol:draft:wr", JSON.stringify([
+      { id: 31, name: "Ja'Marr Chase", detail: "WR · LSU" },
+      { id: 32, name: "DeVonta Smith", detail: "WR · Alabama" },
+    ]));
+    cfbd.cfbdGql
+      .mockResolvedValueOnce({ gamePlayerStat: [{ stat: "100" }] })
+      .mockResolvedValueOnce({ gamePlayerStat: [{ stat: "70" }] });
+
+    const res = await getQuestion(new Request("http://fake/api/more-or-less/question?type=player"), mockEnv());
+
+    expect(res.status).toBe(200);
+    expect(cfbd.cfbdGql).toHaveBeenCalledTimes(2);
   });
 
   it("re-rolls a player whose total is 0", async () => {
