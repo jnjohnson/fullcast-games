@@ -29,7 +29,7 @@ Full-stack app on **Cloudflare Workers** with a **Vue 3 SPA** frontend. All play
   - `POST /api/more-or-less/answer` → `submitAnswer`
   - Anything else → 404
 - **`cfbd.js`**: `cfbdGql(query, variables, env)` POSTs to `https://graphql.collegefootballdata.com/v1/graphql`. It returns `data` and throws on HTTP or GraphQL errors. The schema is Hasura-style (`where` with `_eq` / `_in`, `orderBy`, `*Aggregate`).
-- **`kv.js`**: `kvGet` / `kvPut` JSON helpers for `CFBD_CACHE` (1-hour TTL).
+- **`kv.js`**: `kvGet` / `kvPut` JSON helpers for `CFBD_CACHE`. `kvPut(key, value, env, ttl)` takes an optional TTL in seconds (default 1 hour).
 - **`constants.js`**: `P4_SCHOOLS`, shared by Transfer Wizard and More or Less.
 - **`transferWizard.js`**: Transfer Wizard game logic (see Game Flow).
 - **`moreOrLess.js`**: More or Less game logic (see Game Flow). Exports pure helpers `winPct`, `sumStatRows`, `isCorrect` and `formatValue` for unit tests.
@@ -72,9 +72,9 @@ Full-stack app on **Cloudflare Workers** with a **Vue 3 SPA** frontend. All play
 The player guesses whether subject B had more or less of a stat than subject A. It's a streak game: each question's B becomes the next question's A, and the run ends on a wrong guess. Ties count as correct.
 
 1. **Question types** (a fresh run picks one at random, with players weighted 2:1:1):
-   - `coach`: win % from FBS `coachSeason` rows since 2000. The pool is coaches with at least 5 such seasons (`coachAggregate` count, then a random offset).
+   - `coach`: win % from FBS `coachSeason` rows since 2000. The pool is coaches with at least 5 such seasons (`coachAggregate` count, then a random offset). The count is cached in KV under `mol:coach-count` for about 6 months.
    - `school`: win % for a `P4_SCHOOLS` school, summed from `coachSeasonAggregate` since 2000.
-   - `player`: career totals for NFL draft picks from 2021 on (`draftPicks` → `collegeAthleteRecord`). Players are grouped as `qb`, `rb` or `wr` (WR + TE), and each group has its own stat list (`PLAYER_GROUPS` / `STATS`). The draft pool is cached in KV under `mol:draft:<group>`. Totals come from one `gamePlayerStat` query filtered by category and type; `C/ATT` rows count completions. Players with a total of 0 are re-rolled.
+   - `player`: career totals for NFL draft picks from 2021 on (`draftPicks` → `collegeAthleteRecord`). Players are grouped as `qb`, `rb` or `wr` (WR + TE), and each group has its own stat list (`PLAYER_GROUPS` / `STATS`). The draft pool is cached in KV under `mol:draft:<group>` for 30 days. Totals come from one `gamePlayerStat` query filtered by category and type; `C/ATT` rows count completions. Players with a total of 0 are re-rolled.
 2. `question` caches the full question, including B's value, under `mol:q:<uuid>`. The response leaves out B's value: `{ id, type, stat: { key, label }, a: { name, detail, value, display }, b: { name, detail } }`.
 3. `question?from=<id>` continues the streak: the cached B becomes A, and a new B of the same type is picked (excluding the previous two subjects). Player chains switch to another stat for the group when A has a non-zero total for it. Returns 404 if `from` has expired.
 4. `answer` POSTs `{ id, guess: 'more' | 'less' }` and returns `{ correct, b: { value, display } }`. Returns 400 for an invalid guess and 404 for an expired id.
