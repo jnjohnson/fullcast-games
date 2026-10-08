@@ -97,8 +97,6 @@
     }
 
     // The prompt for the current question, e.g. "Did Bryce Young have more or less career passing yards than Caleb Williams?"
-    // TODO
-    // Add an 's or ' to the end of the school / coach name
     const prompt = computed(() => {
         const q = question.value;
         const a_end = q.a.name.slice(-1) === 's' ? "\'" : "'s";
