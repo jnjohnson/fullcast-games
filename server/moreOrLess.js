@@ -5,6 +5,7 @@
 import { cfbdGql } from './cfbd.js';
 import { kvGet, kvPut } from './kv.js';
 import { P4_SCHOOLS } from './constants.js';
+import { randomItem, shuffle } from './utils.js';
 
 // Coach and school records only count FBS seasons from this year on.
 const RECORD_SINCE = 2000;
@@ -51,21 +52,6 @@ const PLAYER_GROUPS = {
 const QUESTION_TYPES = ['player', 'player', 'coach', 'school'];
 
 // ─── Pure helpers ────────────────────────────────────────────────────────────
-
-// Returns a random element of `arr`, or undefined if it's empty.
-function randomItem(arr) {
-    return arr[Math.floor(Math.random() * arr.length)];
-}
-
-// Returns a shuffled copy of `arr` (Fisher-Yates).
-function shuffle(arr) {
-    const out = [...arr];
-    for (let i = out.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [out[i], out[j]] = [out[j], out[i]];
-    }
-    return out;
-}
 
 // Computes win percentage from a { wins, losses, ties } record, counting a tie as half a win.
 // Returns a number between 0 and 1, or 0 when no games were played.
