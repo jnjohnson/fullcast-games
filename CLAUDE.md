@@ -27,12 +27,18 @@ Full-stack app on **Cloudflare Workers** with a **Vue 3 SPA** frontend. All play
   - `GET  /api/guys/videos?firstName=&lastName=&position=` → `getPlayerHighlights`
   - `GET  /api/more-or-less/question[?from=<id>][&type=player|coach|school]` → `getQuestion`
   - `POST /api/more-or-less/answer` → `submitAnswer`
+  - `GET  /api/ladder/question[?from=<id>]` → `ladder.getQuestion`
+  - `POST /api/ladder/answer` → `ladder.submitAnswer`
+  - `POST /api/ladder/lifeline` → `ladder.useLifeline`
+  - `GET  /api/ladder/search?kind=team|coach|qb&q=` → `ladder.search`
   - Anything else → 404
 - **`cfbd.js`**: `cfbdGql(query, variables, env)` POSTs to `https://graphql.collegefootballdata.com/v1/graphql`. It returns `data` and throws on HTTP or GraphQL errors. The schema is Hasura-style (`where` with `_eq` / `_in`, `orderBy`, `*Aggregate`).
 - **`kv.js`**: `kvGet` / `kvPut` JSON helpers for `CFBD_CACHE`. `kvPut(key, value, env, ttl)` takes an optional TTL in seconds (default 1 hour).
 - **`constants.js`**: `P4_SCHOOLS`, shared by Transfer Wizard and More or Less.
+- **`utils.js`**: `randomItem` and `shuffle`, shared by More or Less and The Ladder.
 - **`transferWizard.js`**: Transfer Wizard game logic (see Game Flow).
 - **`moreOrLess.js`**: More or Less game logic (see Game Flow). Exports pure helpers `winPct`, `sumStatRows`, `isCorrect` and `formatValue` for unit tests.
+- **`ladder.js`**: The Ladder game logic (see Game Flow). Exports pure helpers `offseasonYear`, `subjectKey`, `predictStartingQB`, `toGameEntry`, `findAnswer`, `chooseQuestion`, `latestPoll` and `searchIndex` for unit tests.
 - **`guys.js`**: Guys page logic:
   - `getRandomPlayer(request, env)` reads the filters with `searchParams.getAll()` for `position`, `school`, `conference`, and `year`, so a key may repeat (e.g. `?position=QB&position=WR`). It builds an `athlete_bool_exp` `where` clause using `_in`, counts the matches with `athleteAggregate`, then picks a random offset. It retries until it finds a player with stats. Returns 404 `{ error }` if nothing matches.
   - `getPlayerById` returns the same `{ player, stats }` shape as `getRandomPlayer`.
@@ -42,9 +48,11 @@ Full-stack app on **Cloudflare Workers** with a **Vue 3 SPA** frontend. All play
 
 ### Frontend (`src/`)
 
-- **`router/index.js`**: `/` (HomeView), `/transfer-wizard`, `/guys`, `/more-or-less` (all but home lazy-loaded).
+- **`router/index.js`**: `/` (HomeView), `/transfer-wizard`, `/guys`, `/more-or-less`, `/the-ladder` (all but home lazy-loaded).
 - **`views/TransferWizard.vue`**: Shows a transfer route and 4 player buttons, then POSTs the answer and animates correct (green) or incorrect (red).
 - **`views/MoreOrLess.vue`**: Two subject cards (A's value shown, B's hidden), More/Less buttons, and a streak counter. On a correct guess it prefetches the next question while the reveal is shown. The best streak is stored in `localStorage` under `mol-best-streak`.
+- **`views/Ladder.vue`**: The Ladder. It shows the subject card and the question prompt, plus a guess box built on `components/AutocompleteInput.vue`. It also has five miss markers and a one-time **Lifeline** button that swaps the guess box for 4 choice buttons. Solved questions stay on screen as rungs, each with its answer in green (`history`). A rung that continues the chain is joined to the one above by a connector line, and only rungs that start a chain show the subject card. A correct guess loads the next question below the last rung, with no Next button, then calls the autocomplete's `focus()` to scroll the new text box to the center of the screen. The best score is stored in `localStorage` under `ladder-best-score`.
+- **`components/AutocompleteInput.vue`**: A dependency-free combobox. It debounces requests to `/api/ladder/search` and supports keyboard navigation (↑/↓/Enter/Esc) and closing on an outside click. It emits `select` with `{ id, name, detail }`, or with `null` when the text is edited after a pick, and exposes `clear()` and `focus()`. `focus()` scrolls the input to the center of the screen and focuses it.
 - **`views/Guys.vue`**: "Remember A Guy" random player lookup.
   - Filters are driven by the `FILTER_DEFS` array (`position`, `school`, `conference`, `year`), which renders one custom checkbox dropdown per filter in a `v-for` loop. Option lists (`POSITIONS`, `SCHOOLS`, `CONFERENCES`, `YEARS`) are hardcoded constants. `SCHOOLS` names must match CFBD `team.school` values exactly.
   - Each dropdown trigger shows the current selections, comma-separated. `formatYearChips` collapses consecutive years into ranges (e.g. `2012 - 2018`).
@@ -78,6 +86,24 @@ The player guesses whether subject B had more or less of a stat than subject A. 
 2. `question` caches the full question, including B's value, under `mol:q:<uuid>`. The response leaves out B's value: `{ id, type, stat: { key, label }, a: { name, detail, value, display }, b: { name, detail } }`.
 3. `question?from=<id>` continues the streak: the cached B becomes A, and a new B of the same type is picked (excluding the previous two subjects). Player chains switch to another stat for the group when A has a non-zero total for it. Returns 404 if `from` has expired.
 4. `answer` POSTs `{ id, guess: 'more' | 'less' }` and returns `{ correct, b: { value, display } }`. Returns 400 for an invalid guess and 404 for an expired id.
+
+## Game Flow (The Ladder)
+
+The player names the last team, coach or QB that beat the subject (`beatBy`), or that the subject beat (`beat`). A correct answer becomes the next subject. A wrong guess counts as a miss and the player retries the same question. The run ends after `MAX_MISSES` (5) misses. Guesses are submitted by id, so the player has to pick an autocomplete suggestion. The game is meant for the offseason (February to early September).
+
+1. **Start**: a random team from the latest AP poll (the final postseason poll if there is one), cached as `ladder:ranked:<year>`. The subject is that team, its coach, or its predicted starting QB, all taken from the team's most recent game.
+2. **`subjectGames`** loads the subject's last `GAME_LIMIT` completed games (all divisions) and turns each into an entry with `self` and `opponent` sides of `{ team, coach, qb }`, newest first.
+   - The QB is `predictStartingQB`: the player with the most pass attempts, since CFBD has no depth charts. It only counts if he's listed at QB.
+   - The coach is only set when the team-season has exactly one `coachSeason` row.
+   - The team is only set for FBS or FCS schools.
+   - For a coach subject, the list stops at the first game where the coach can't be confirmed. For a QB subject, it keeps only the games he started.
+   - Cached as `ladder:games:<kind>:<id>:<year>`.
+3. **`chooseQuestion`** tries the 6 direction × answer kind pairings in random order. It uses only the single most recent loss or win: it never falls back to an older game. It skips answers already used this run (`run.usedKeys`, e.g. `coach:70`). If no pairing works, the chain restarts from a ranked team and the response sets `restarted: true`.
+4. The full question, including the answer and the run state (`{ score, misses, lifelineUsed, usedKeys }`), is cached under `ladder:q:<uuid>` for 6 hours. `question?from=<id>` requires that question to be solved.
+5. **`answer`** reveals the answer and game only on a correct guess or game over. **`lifeline`** (once per run) returns 4 choices. The distractors are the subject's other opponents in the same direction, topped up from the index.
+6. **Autocomplete**: `getIndex(kind)` builds `[{ id, name, detail }]` lists of FBS/FCS teams, all coaches, and all athletes listed at QB (fetched in pages of 1000). They're cached as `ladder:index:<kind>:<year>` and also kept in memory in the isolate. `searchIndex` ranks prefix matches, then word-prefix matches, then substring matches.
+
+**Caching**: rankings, games and indexes use `OFFSEASON_TTL` (~8 months). Their keys include `offseasonYear()`, which returns the previous year in January and the current year otherwise, so one offseason's data never carries into the next.
 
 ## Testing
 

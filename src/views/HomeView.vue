@@ -8,6 +8,10 @@
             <h2>More or Less</h2>
             <p>Determine who had more and who had less</p>
         </RouterLink>
+        <RouterLink to="/the-ladder" class="button">
+            <h2>The Ladder</h2>
+            <p>Climb the chain of who beat who.</p>
+        </RouterLink>
         <RouterLink to="/guys" class="button">
             <h2>Remember Some Guys</h2>
             <p>Sit back and be reminded of Some Guys of yore.</p>
