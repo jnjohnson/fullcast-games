@@ -2,7 +2,7 @@
     <div class="home">
         <RouterLink to="/transfer-wizard" class="button">
             <h2>Transfer Wizard</h2>
-            <p>Test your knowledge of the Wizard's spells and incantations.</p>
+            <p>Test your knowledge of the Wizard's spells and incantations</p>
         </RouterLink>
         <RouterLink to="/more-or-less" class="button">
             <h2>More or Less</h2>
@@ -10,11 +10,11 @@
         </RouterLink>
         <RouterLink to="/the-ladder" class="button">
             <h2>The Ladder</h2>
-            <p>Climb the chain of who beat who.</p>
+            <p>Climb the chain of who beat who</p>
         </RouterLink>
         <RouterLink to="/guys" class="button">
             <h2>Remember Some Guys</h2>
-            <p>Sit back and be reminded of Some Guys of yore.</p>
+            <p>Sit back and be reminded of Some Guys of yore</p>
         </RouterLink>
     </div>
 </template>
