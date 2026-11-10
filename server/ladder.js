@@ -122,27 +122,31 @@ export function toGameEntry(game, selfSchool, starters, coaches) {
 
 // Finds the answer for one (direction, answerKind) pairing. `games` are the subject's game entries, newest first.
 // 'beatBy' looks at the subject's last loss and 'beat' at its last win. Only the most recent such game
-// counts: if it has no usable answer of `answerKind`, or the answer is in `usedKeys`, this returns null
-// rather than falling back to an older game (which would be the wrong answer).
-// Returns { answer: { kind, id, name, detail }, game: { date, score } } or null.
-export function findAnswer(games, direction, answerKind, usedKeys) {
+// counts: this returns null rather than falling back to an older game (which would be the wrong answer) if
+// - it has no usable answer of `answerKind`,
+// - the answer is in `usedKeys`, or
+// - the game is in `usedGameIds`. One game can answer several questions in a row (Freeman's last win is
+//   Pritchard's last loss is Notre Dame's last win), which would bounce the chain between the two teams.
+// Returns { answer: { kind, id, name, detail }, game: { date, score }, gameId } or null.
+export function findAnswer(games, direction, answerKind, usedKeys, usedGameIds = []) {
     const game = games.find(g => g.won === (direction === 'beat'));
     const answer = game?.opponent[answerKind];
-    if (!answer || usedKeys.includes(subjectKey(answerKind, answer.id))) {
+    if (!answer || usedKeys.includes(subjectKey(answerKind, answer.id)) || usedGameIds.includes(game.gameId)) {
         return null;
     }
     return {
         answer: { kind: answerKind, ...answer },
         game: { date: game.date, score: game.score },
+        gameId: game.gameId,
     };
 }
 
 // Picks the question for a subject: tries each (direction, answerKind) pairing in `combos` (random order by
-// default) and returns the first one findAnswer can answer, as { direction, answerKind, answer, game }.
+// default) and returns the first one findAnswer can answer, as { direction, answerKind, answer, game, gameId }.
 // Returns null when the chain dead-ends.
-export function chooseQuestion(games, usedKeys, combos = shuffle(COMBOS)) {
+export function chooseQuestion(games, usedKeys, usedGameIds = [], combos = shuffle(COMBOS)) {
     for (const { direction, answerKind } of combos) {
-        const found = findAnswer(games, direction, answerKind, usedKeys);
+        const found = findAnswer(games, direction, answerKind, usedKeys, usedGameIds);
         if (found) return { direction, answerKind, ...found };
     }
     return null;
@@ -464,8 +468,8 @@ async function getIndex(kind, env) {
 
 // Starts a chain from a random team in the latest AP poll: the team itself, its coach, or its predicted
 // starting QB (taken from the team's most recent game, falling back to the team when unavailable).
-// `run` carries the score, misses and used subjects forward. Throws if no start subject works.
-// Returns the full question: { subject, direction, answerKind, answer, game, run }.
+// `run` carries the score, misses, used subjects and used games forward. Throws if no start subject works.
+// Returns the full question: { subject, direction, answerKind, answer, game, gameId, run }.
 async function startQuestion(run, env) {
     const ranked = await getRankedTeams(env);
 
@@ -483,9 +487,10 @@ async function startQuestion(run, env) {
         if (run.usedKeys.includes(key)) continue;
 
         const usedKeys = [...run.usedKeys, key];
-        const question = chooseQuestion(await subjectGames(subject, env), usedKeys);
+        const usedGameIds = run.usedGameIds ?? [];
+        const question = chooseQuestion(await subjectGames(subject, env), usedKeys, usedGameIds);
         if (question) {
-            return { subject, ...question, run: { ...run, usedKeys } };
+            return { subject, ...question, run: { ...run, usedKeys, usedGameIds: [...usedGameIds, question.gameId] } };
         }
     }
     throw new Error('Could not find a starting question');
@@ -496,11 +501,12 @@ async function startQuestion(run, env) {
 async function nextQuestion(prev, env) {
     const subject = prev.answer;
     const usedKeys = [...prev.run.usedKeys, subjectKey(subject.kind, subject.id)];
-    const run = { ...prev.run, usedKeys };
+    const usedGameIds = prev.run.usedGameIds ?? [];
+    const run = { ...prev.run, usedKeys, usedGameIds };
 
-    const question = chooseQuestion(await subjectGames(subject, env), usedKeys);
+    const question = chooseQuestion(await subjectGames(subject, env), usedKeys, usedGameIds);
     if (question) {
-        return { subject, ...question, run };
+        return { subject, ...question, run: { ...run, usedGameIds: [...usedGameIds, question.gameId] } };
     }
     return { ...(await startQuestion(run, env)), restarted: true };
 }
@@ -555,7 +561,10 @@ export async function getQuestion(request, env) {
             }
             question = await nextQuestion(prev, env);
         } else {
-            question = await startQuestion({ score: 0, misses: 0, lifelineUsed: false, usedKeys: [] }, env);
+            question = await startQuestion(
+                { score: 0, misses: 0, lifelineUsed: false, usedKeys: [], usedGameIds: [] },
+                env
+            );
         }
     } catch (error) {
         return Response.json({ error: error.message }, { status: 500 });
