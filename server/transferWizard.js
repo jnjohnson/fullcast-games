@@ -5,6 +5,9 @@ const p4_conferences = ["ACC", "Big Ten", "Big 12", "SEC"];
 
 // TODO
 // - Isaiah Johnson (CB) has a crazy looking transfer history. Investigate what's happening there.
+// - - Turns out, it's two different Isaiah Johnsons. One transfered from Dartmouth to Syracuse.
+// - - The other transfered from ASU to Marshall, then entered the portal again and didn't get picked up.
+// - - Need to figure out a way to differentiate them in this instance.
 // - Investigate replacing current randomization scheme for random creating a offset and limit of 4
 
 // Returns an array of size [size] of elements from the input array
