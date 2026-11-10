@@ -166,13 +166,15 @@
 
 <template>
     <div class="ladder">
-        <h2>THE LADDER</h2>
-        <div class="scoreboard">
-            <span>Score: <strong>{{ run.score }}</strong></span>
-            <span>Best: <strong>{{ best }}</strong></span>
-            <span class="misses" :aria-label="`${run.misses} of ${MAX_MISSES} misses`">
-                <span v-for="n in MAX_MISSES" :key="n" class="miss" :class="{ used: n <= run.misses }">✕</span>
-            </span>
+        <div class="ladder-header">
+            <h2>THE LADDER</h2>
+            <div class="scoreboard">
+                <span>Score: <strong>{{ run.score }}</strong></span>
+                <span>Best: <strong>{{ best }}</strong></span>
+                <span class="misses" :aria-label="`${run.misses} of ${MAX_MISSES} misses`">
+                    <span v-for="n in MAX_MISSES" :key="n" class="miss" :class="{ used: n <= run.misses }">✕</span>
+                </span>
+            </div>
         </div>
 
         <div
@@ -261,7 +263,6 @@
                     <span class="game">{{ gameLine(reveal.game) }}</span>
                 </div>
                 <h3>Game Over</h3>
-                <p>You finished with a score of <strong>{{ run.score }}</strong>. Your best is <strong>{{ best }}</strong>.</p>
                 <button @click="start">Play Again</button>
             </div>
         </div>
@@ -276,10 +277,27 @@
         display: flex;
         flex-direction: column;
         gap: 30px;
-        margin: 40px auto 0;
+        margin: 0 auto;
         max-width: 640px;
         text-align: center;
         width: 100%;
+    }
+
+    // The title and scoreboard stay pinned to the top of the screen as the ladder grows down the page.
+    // Sticky (not fixed) keeps the header's space in the layout, so it never covers the first question.
+    .ladder-header {
+        align-items: center;
+        background: base.$color-background;
+        border-bottom: 1px solid base.$ptku-blue;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 35px 0;
+        position: sticky;
+        top: 0;
+        width: 100%;
+        // Above the autocomplete suggestions, so they slide under it when scrolled.
+        z-index: 20;
 
         h2 {
             font-size: 1.8rem;
@@ -502,6 +520,9 @@
         strong {
             color: base.$ptku-blue;
         }
+    }
+    .game-over {
+        gap: 30px;
     }
 
 @keyframes slide-in {
