@@ -43,8 +43,8 @@ const COACHES = {
 };
 
 // A game entry from the subject's side, for findAnswer / chooseQuestion
-function entry(won, opponent, date = "2025-01-01") {
-  return { won, date, score: "x", opponent };
+function entry(won, opponent, gameId = 1) {
+  return { gameId, won, date: "2025-01-01", score: "x", opponent };
 }
 const OPP = {
   team: { id: "Indiana", name: "Indiana", detail: "" },
@@ -127,7 +127,7 @@ describe("toGameEntry", () => {
 // ─── findAnswer / chooseQuestion ─────────────────────────────────────────────
 
 describe("findAnswer", () => {
-  const games = [entry(true, { ...OPP, team: { id: "Purdue", name: "Purdue" } }), entry(false, OPP)];
+  const games = [entry(true, { ...OPP, team: { id: "Purdue", name: "Purdue" } }, 2), entry(false, OPP, 1)];
 
   it("uses the last loss for beatBy and the last win for beat", () => {
     expect(findAnswer(games, "beatBy", "team", []).answer.id).toBe("Indiana");
@@ -138,8 +138,15 @@ describe("findAnswer", () => {
     expect(findAnswer(games, "beatBy", "coach", [subjectKey("coach", 2)])).toBeNull();
   });
 
+  it("returns the game id, and null when the game was already used", () => {
+    expect(findAnswer(games, "beatBy", "team", []).gameId).toBe(1);
+    expect(findAnswer(games, "beatBy", "team", [], [1])).toBeNull();
+    // An older loss doesn't stand in for the used one.
+    expect(findAnswer([...games, entry(false, OPP, 3)], "beatBy", "team", [], [1])).toBeNull();
+  });
+
   it("doesn't fall back to an older game when the last one has no answer", () => {
-    const withGap = [entry(false, { ...OPP, coach: null }), entry(false, OPP)];
+    const withGap = [entry(false, { ...OPP, coach: null }, 1), entry(false, OPP, 2)];
     expect(findAnswer(withGap, "beatBy", "coach", [])).toBeNull();
   });
 
@@ -151,12 +158,24 @@ describe("findAnswer", () => {
 describe("chooseQuestion", () => {
   it("returns the first pairing that has an answer", () => {
     const games = [entry(false, { ...OPP, qb: null })];
-    const q = chooseQuestion(games, [], [
+    const q = chooseQuestion(games, [], [], [
       { direction: "beat", answerKind: "team" },
       { direction: "beatBy", answerKind: "qb" },
       { direction: "beatBy", answerKind: "coach" },
     ]);
     expect(q).toMatchObject({ direction: "beatBy", answerKind: "coach", answer: { kind: "coach", id: 2 } });
+  });
+
+  it("doesn't reuse a game, so two teams that just played can't bounce back and forth", () => {
+    // Pritchard's last loss is the Notre Dame game (id 1) that answered the previous question,
+    // so only his last win (id 2) can be used.
+    const pritchard = [
+      entry(false, { ...OPP, team: { id: "Notre Dame", name: "Notre Dame" } }, 1),
+      entry(true, { ...OPP, team: { id: "Cal", name: "Cal" } }, 2),
+    ];
+    const combos = [{ direction: "beatBy", answerKind: "team" }, { direction: "beat", answerKind: "team" }];
+    const q = chooseQuestion(pritchard, ["coach:7"], [1], combos);
+    expect(q).toMatchObject({ direction: "beat", answer: { id: "Cal" }, gameId: 2 });
   });
 
   it("returns null when the chain dead-ends", () => {

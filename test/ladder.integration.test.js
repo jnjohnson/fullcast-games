@@ -113,6 +113,7 @@ describe("getQuestion", () => {
     const cached = await env.CFBD_CACHE.get(`ladder:q:${body.id}`, { type: "json" });
     expect(cached.answer).toEqual({ kind: "coach", id: 2, name: "Curt Cignetti", detail: "Indiana" });
     expect(cached.run.usedKeys).toEqual(["team:Ohio State"]);
+    expect(cached.run.usedGameIds).toEqual([1]);
   });
 
   it("caches the rankings and the subject's games for the offseason", async () => {
@@ -146,6 +147,7 @@ describe("getQuestion", () => {
     // Indiana is the next subject; its cached games show a win over Ohio State.
     const year = offseasonYear();
     await env.CFBD_CACHE.put(`ladder:games:team:Indiana:${year}`, JSON.stringify([{
+      gameId: 7,
       won: true,
       date: "2025-12-06T20:00:00",
       score: "Indiana 13, Ohio State 10",
@@ -154,7 +156,7 @@ describe("getQuestion", () => {
     const id = await putQuestion(cachedQuestion({
       answerKind: "team",
       answer: { kind: "team", id: "Indiana", name: "Indiana", detail: "" },
-      run: { score: 3, misses: 2, lifelineUsed: true, usedKeys: ["coach:9"] },
+      run: { score: 3, misses: 2, lifelineUsed: true, usedKeys: ["coach:9"], usedGameIds: [1] },
       solved: true,
     }));
 
@@ -169,6 +171,9 @@ describe("getQuestion", () => {
       restarted: false,
     });
     expect(cfbd.cfbdGql).not.toHaveBeenCalled();
+
+    const cached = await env.CFBD_CACHE.get(`ladder:q:${body.id}`, { type: "json" });
+    expect(cached.run.usedGameIds).toEqual([1, 7]);
   });
 });
 
