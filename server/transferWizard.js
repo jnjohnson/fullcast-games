@@ -9,7 +9,7 @@ const p4_conferences = ["ACC", "Big Ten", "Big 12", "SEC"];
 // - - The other transfered from ASU to Marshall, then entered the portal again and didn't get picked up.
 // - - Need to figure out a way to differentiate them in this instance.
 // - Investigate replacing current randomization scheme for random creating a offset and limit of 4
-
+// - Determine if caching (for this and other games) is on a per-user basis. May not be relevant for every game
 // Returns an array of size [size] of elements from the input array
 function getRandIndicies(arr, size) {
     var randArr = [];
@@ -41,13 +41,13 @@ async function fetchRandomTransfers(difficulty, env) {
     var where = {};
 
     if (difficulty === 'easy') {
-        where = {season: {_eq: 2026}, position: { position: { _eq: 'QB' } }, toTeam: { school: { _in: randSchools } } };
+        where = {season: {_eq: 2026}, position: { position: { _eq: 'QB' } }, toTeam: { school: { _in: P4_SCHOOLS } } };
     }
     if (difficulty === 'medium') {
-        where = {season: {_eq: 2026}, position: { position: { _in: ['QB', 'RB', 'WR'] } }, toTeam: { school: { _in: randSchools } } };
+        where = {season: {_eq: 2026}, position: { position: { _in: ['QB', 'RB', 'WR'] } }, toTeam: { school: { _in: P4_SCHOOLS } } };
     }
     if (difficulty === 'hard') {
-        where = {position: { position: { _in: ['QB', 'RB', 'WR'] } }, toTeam: { school: { _in: randSchools } } };
+        where = {position: { position: { _in: ['QB', 'RB', 'WR'] } }, toTeam: { school: { _in: P4_SCHOOLS } } };
     }
     const data = await cfbdGql(`
         query($where: TransferBoolExp!) {
