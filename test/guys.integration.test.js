@@ -48,7 +48,7 @@ describe("getRandomPlayer", () => {
                 makeStatRow("rushing", "YDS", 350, 2023, "Ducks", 2022),
             ] });
 
-        const res = await getRandomPlayer(FAKE_ENV);
+        const res = await getRandomPlayer(makeRequest('/api/guys/random-player'), FAKE_ENV);
         expect(res.status).toBe(200);
 
         const { player, stats } = await res.json();
@@ -67,7 +67,7 @@ describe("getRandomPlayer", () => {
     it("returns 404 when no athletes exist", async () => {
         cfbd.cfbdGql.mockResolvedValueOnce({ athleteAggregate: { aggregate: { count: 0 } } });
 
-        const res = await getRandomPlayer(FAKE_ENV);
+        const res = await getRandomPlayer(makeRequest('/api/guys/random-player'), FAKE_ENV);
         expect(res.status).toBe(404);
         expect((await res.json()).error).toBeDefined();
     });

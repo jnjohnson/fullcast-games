@@ -44,7 +44,7 @@ describe("getRandomPlayer", () => {
     it("returns 404 when athlete count is 0", async () => {
         cfbd.cfbdGql.mockResolvedValueOnce({ athleteAggregate: { aggregate: { count: 0 } } });
 
-        const res = await getRandomPlayer(FAKE_ENV);
+        const res = await getRandomPlayer(makeRequest('/api/guys/random-player'), FAKE_ENV);
         expect(res.status).toBe(404);
         const body = await res.json();
         expect(body.error).toBeDefined();
@@ -56,7 +56,7 @@ describe("getRandomPlayer", () => {
             .mockResolvedValueOnce({ athlete: [makeAthlete(42, "Bo", "Nix", "QB", [{ year: 2019, school: "Auburn" }])] })
             .mockResolvedValueOnce({ gamePlayerStat: [makeStatRow("rushing", "YDS", 400, 2023, "Tigers", 2019)] });
 
-        const res = await getRandomPlayer(FAKE_ENV);
+        const res = await getRandomPlayer(makeRequest('/api/guys/random-player'), FAKE_ENV);
         expect(res.status).toBe(200);
 
         const { player, stats } = await res.json();
@@ -78,7 +78,7 @@ describe("getRandomPlayer", () => {
             .mockResolvedValueOnce({ athlete: [makeAthlete(1, "A", "B", "WR")] })
             .mockResolvedValueOnce({ gamePlayerStat: [makeStatRow("receiving", "YDS", 100, 2023)] });
 
-        await getRandomPlayer(FAKE_ENV);
+        await getRandomPlayer(makeRequest('/api/guys/random-player'), FAKE_ENV);
 
         // Second call is the athlete query; offset should be floor(0.5 * 100) = 50
         expect(cfbd.cfbdGql.mock.calls[1][1].offset).toBe(50);
