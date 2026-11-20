@@ -1,5 +1,5 @@
 <script setup>
-    import { ref } from 'vue';
+    import { ref, nextTick } from 'vue';
 
     function getCookie(name) {
         const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
@@ -17,6 +17,18 @@
     const showNewQuestionButton = ref(false);
     const loading = ref(false);
 
+    /**
+     * Scroll the window to the bottom of the page so the answer buttons (and the
+     * New Question button, once shown) are visible without manual scrolling.
+     * Waits a tick so the newly rendered DOM is measured first. This is a no-op
+     * when the page fits in the viewport, so it only matters on small screens.
+     * @param {ScrollBehavior} behavior - 'auto' (instant jump) or 'smooth'
+     */
+    async function scrollToBottom(behavior = 'auto') {
+        await nextTick();
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
+    }
+
     async function fetchQuestion(level) {
         loading.value = true;
         const response = await fetch(`/api/transfer-wizard/get-players?difficulty=${level}`);
@@ -32,6 +44,7 @@
         }));
         showNewQuestionButton.value = false;
         loading.value = false;
+        scrollToBottom();
     }
 
     function selectDifficulty(level) {
@@ -60,6 +73,7 @@
         } else if (body.pid == pid) {
             buttonState.value[i].correct = true;
             showNewQuestionButton.value = true;
+            scrollToBottom('smooth');
         } else {
             buttonState.value.forEach(button => {
                 if (body.pid.includes(button.pid)) {
@@ -68,6 +82,7 @@
             });
             buttonState.value[i].incorrect = true;
             showNewQuestionButton.value = true;
+            scrollToBottom('smooth');
         }
     }
 
