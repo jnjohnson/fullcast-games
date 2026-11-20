@@ -304,6 +304,10 @@
         flex-direction: column;
         align-items: center;
         gap: 50px;
+
+        @media screen and (max-width: 600px) {
+            gap: 0;
+        }
     }
 
     .intro {
@@ -491,6 +495,14 @@
             font-size: 0.9rem;
             opacity: 0.9;
         }
+
+        @media screen and (max-width: 600px) {
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 5px;
+            padding: 10px 15px;
+            margin-top: 50px;
+        }
     }
 
     .pick-another {
@@ -571,6 +583,13 @@
                 }
             }
         }
+
+        @media screen and (max-width: 600px) {
+            gap: 20px;
+            margin-top: 30px;
+            overflow-x: scroll;
+            width: 100%;
+        }
     }
 
     .no-stats {
@@ -642,6 +661,14 @@
             color: base.$color-text;
             font-size: 0.75rem;
             opacity: 0.5;
+        }
+
+        @media screen and (max-width: 600px) {
+            margin-top: 30px;
+
+            .video-cards {
+                grid-template-columns: 1fr;
+            }
         }
     }
 
