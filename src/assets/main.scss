@@ -9,6 +9,10 @@
     padding: 2rem;
     font-weight: normal;
     width: 100%;
+
+    @media screen and (max-width: 600px) {
+        padding: 1rem;
+    }
 }
 body {
     display: flex;

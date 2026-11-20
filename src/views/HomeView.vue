@@ -27,6 +27,7 @@
         flex-flow: row wrap;
         gap: 50px;
         margin-top: 70px;
+        justify-content: center;
 
         a.button {
             align-items: center;
@@ -56,5 +57,45 @@
                 transition: all 0.4s;
             }
         }
+        @media screen and (max-width: 1200px) {
+            gap: 30px;
+
+            a.button {
+                gap: 15px;
+                width: calc(50% - 15px);
+
+                h2 {
+                    font-size: 1.8rem;
+                }
+                p {
+                    font-size: 0.8rem;
+                }
+            }
+        }
+
+        @media screen and (max-width: 930px) {
+            gap: 20px;
+
+            a.button {
+                gap: 10px;
+                width: calc(50% - 10px);
+
+                h2 {
+                    font-size: 1.4rem;
+                }
+            }
+        }
+
+        @media screen and (max-width: 800px) {
+            align-items: center;
+            flex-flow: column nowrap;
+            margin-top: 40px;
+
+            a.button {
+                max-width: 500px;
+                width: 100%;
+            }
+        }
     }
+
 </style>
