@@ -185,6 +185,11 @@
         h2 {
             font-size: 1.8rem;
         }
+
+        @media screen and (max-width: 600px) {
+            gap: 0;
+            margin-top: 0;
+        }
     }
 
     .streaks {
@@ -195,6 +200,10 @@
 
         strong {
             color: base.$ptku-blue;
+        }
+
+        @media screen and (max-width: 600px) {
+            margin: 8px 0px;
         }
     }
 
@@ -211,6 +220,11 @@
         font-size: 1.2rem;
         font-weight: 700;
         max-width: 700px;
+
+        @media screen and (max-width: 600px) {
+            line-height: 1.4;
+            margin-bottom: 25px;
+        }
     }
 
     .matchup {
@@ -226,6 +240,7 @@
             align-self: center;
             color: base.$ptku-pink;
             font-family: base.$inter;
+            font-size: 1.2rem;
             font-weight: 900;
         }
 
@@ -285,7 +300,18 @@
         }
 
         @media screen and (max-width: 600px) {
+            gap: 3px;
+            padding: 10px;
             width: 100%;
+
+            .name {
+                font-size: 1.2rem;
+            }
+
+            .value {
+                margin-top: 0;
+                font-size: 1.5rem;
+            }
         }
     }
 
@@ -300,6 +326,10 @@
                 cursor: wait;
                 opacity: 0.6;
             }
+        }
+
+        @media screen and (max-width: 600px) {
+            margin-top: 30px;
         }
     }
 
