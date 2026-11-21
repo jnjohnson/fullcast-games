@@ -310,6 +310,7 @@
         button {
             border: none;
             cursor: pointer;
+            font-size: 1rem;
             line-height: 1.7;
             position: relative;
             width: 100%;
