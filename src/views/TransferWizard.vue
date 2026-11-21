@@ -337,12 +337,7 @@
                 width: calc(100% + 6px);
                 z-index: -1;
             }
-            &.waiting,
-            &.correct,
-            &.incorrect {
-                color: base.$color-background;
-                background-color: rgba(base.$color-background, 0);
-            }
+            
             // Only on devices with a real pointer, so touchscreens don't get a sticky hover
             @media (hover: hover) {
                 &:hover {
